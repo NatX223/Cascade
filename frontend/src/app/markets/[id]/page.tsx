@@ -6,6 +6,7 @@ import landing from "../../page.module.css";
 import marketsStyles from "../page.module.css";
 import styles from "./page.module.css";
 import { MARKETS, ABI_EVENTS, type Market } from "@/lib/cascade-data";
+import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 
 const EM_DASH = "—";
 
@@ -213,12 +214,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             How it works
           </Link>
         </nav>
-        <button
-          className={`${landing.corner} ${landing.btnPrimary}`}
-          style={{ fontFamily: "'General Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#0A0A16", background: "#7C5CFF", border: "none", padding: "11px 20px", borderRadius: 14, cursor: "pointer" }}
-        >
-          Connect wallet
-        </button>
+        <ConnectWalletButton size="sm" />
       </header>
 
       <main style={{ maxWidth: 1440, margin: "0 auto", padding: "32px 48px 96px" }}>

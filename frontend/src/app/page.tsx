@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
+import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 
 const EM_DASH = "—";
 
@@ -380,22 +381,7 @@ export default function Home() {
             How it works
           </a>
         </nav>
-        <button
-          className={`${styles.corner} ${styles.btnPrimary}`}
-          style={{
-            fontFamily: "'General Sans', sans-serif",
-            fontSize: 15,
-            fontWeight: 500,
-            color: "#0A0A16",
-            background: "#7C5CFF",
-            border: "none",
-            padding: "11px 20px",
-            borderRadius: 14,
-            cursor: "pointer",
-          }}
-        >
-          Connect wallet
-        </button>
+        <ConnectWalletButton size="sm" />
       </header>
 
       <section
@@ -1007,22 +993,7 @@ export default function Home() {
           either way.
         </p>
         <div style={{ display: "flex", gap: 14, marginTop: 34, flexWrap: "wrap", justifyContent: "center" }}>
-          <button
-            className={`${styles.corner} ${styles.btnPrimary}`}
-            style={{
-              fontFamily: "'General Sans', sans-serif",
-              fontSize: 16,
-              fontWeight: 500,
-              color: "#0A0A16",
-              background: "#7C5CFF",
-              border: "none",
-              padding: "15px 26px",
-              borderRadius: 16,
-              cursor: "pointer",
-            }}
-          >
-            Connect wallet
-          </button>
+          <ConnectWalletButton size="lg" />
           <a
             href="#markets"
             className={`${styles.corner} ${styles.btnOutline}`}
