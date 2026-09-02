@@ -1,0 +1,109 @@
+.page {
+  --csc-purple: #7c5cff;
+}
+
+.page::selection {
+  background: #7c5cff;
+  color: #f5f4fb;
+}
+
+.corner {
+  corner-shape: superellipse(2.5);
+}
+
+@keyframes cscPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes cscLive {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.livePulse {
+  animation: cscLive 2.4s ease-in-out infinite;
+}
+
+.provingPulse {
+  animation: cscPulse 1.4s ease-in-out infinite;
+}
+
+.navLink {
+  color: #a5a3be;
+  text-decoration: none;
+  transition: color 200ms ease-out;
+}
+.navLink:hover {
+  color: #f5f4fb;
+}
+
+.footerLink {
+  color: #6b6889;
+  text-decoration: none;
+  transition: color 200ms ease-out;
+}
+.footerLink:hover {
+  color: #2fe6d9;
+}
+
+.btnPrimary {
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 200ms ease-out;
+  text-decoration: none;
+}
+.btnPrimary:hover {
+  background: #9179ff !important;
+  transform: scale(1.04);
+}
+
+.btnOutline {
+  transition:
+    border-color 200ms ease-out,
+    color 200ms ease-out;
+  text-decoration: none;
+}
+.btnOutline:hover {
+  border-color: #7c5cff;
+  color: #f5f4fb;
+}
+
+.btnTeal {
+  transition: background 200ms ease-out;
+}
+.btnTeal:hover {
+  background: #5cf0e6 !important;
+}
+
+.btnYes {
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 200ms ease-out;
+}
+.btnYes:hover {
+  background: rgba(61, 220, 151, 0.18) !important;
+  transform: scale(1.03);
+}
+
+.btnNo {
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 200ms ease-out;
+}
+.btnNo:hover {
+  background: rgba(255, 92, 122, 0.18) !important;
+  transform: scale(1.03);
+}
