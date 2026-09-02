@@ -1,0 +1,31 @@
+.sideBtn:hover {
+  transform: scale(1.02);
+}
+
+.presetBtn {
+  transition:
+    border-color 200ms ease-out,
+    color 200ms ease-out;
+}
+.presetBtn:hover {
+  border-color: #7c5cff;
+  color: #f5f4fb;
+}
+
+.ctaBtn {
+  transition:
+    filter 200ms ease-out,
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ctaBtn:hover {
+  filter: brightness(1.08);
+  transform: scale(1.02);
+}
+
+.contractLink {
+  color: #2fe6d9;
+  transition: color 200ms ease-out;
+}
+.contractLink:hover {
+  color: #7c5cff;
+}
