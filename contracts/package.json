@@ -36,5 +36,9 @@
     "ts-node": "^10.9.2",
     "typechain": "^8.3.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@gluwa/asc-contracts": "^0.2.1",
+    "@gluwa/usc-contracts": "^0.2.0"
   }
 }
