@@ -10,9 +10,14 @@ import {
 /// @notice Base contract for the prediction market ASC: verifies a foreign-chain transaction
 ///         via the native block-prover precompile, dedupes by query id, then delegates to
 ///         market-resolution logic for the specific market being resolved.
+/// @dev    Forked from the Creditcoin ASCBase pattern, with `action` (a generic discriminator)
+///         replaced by `marketId`, since resolution here always targets one specific market's
+///         stored conditions rather than a fixed set of contract-wide actions.
 abstract contract MarketBase {
+    /// @notice The Native Query Verifier precompile instance.
     INativeQueryVerifier public immutable VERIFIER;
 
+    /// @notice queryId => whether this proof has already been used to resolve a market.
     mapping(bytes32 => bool) public processedQueries;
 
     constructor() {
@@ -35,18 +40,14 @@ abstract contract MarketBase {
         uint64 chainKey,
         uint64 blockHeight,
         bytes calldata encodedTransaction,
-        bytes32 merkleRoot,
-        INativeQueryVerifier.MerkleProofEntry[] calldata siblings,
-        bytes32 lowerEndpointDigest,
-        bytes32[] calldata continuityRoots
+        INativeQueryVerifier.MerkleProof calldata merkleProof,
+        INativeQueryVerifier.ContinuityProof calldata continuityProof
     ) external returns (bool success) {
-        bytes32 queryId = _computeQueryId(chainKey, blockHeight, merkleRoot, siblings);
+        bytes32 queryId = _computeQueryId(chainKey, blockHeight, merkleProof);
 
         require(!processedQueries[queryId], "Query already processed");
 
-        bool verified = _verifyProof(
-            chainKey, blockHeight, encodedTransaction, merkleRoot, siblings, lowerEndpointDigest, continuityRoots
-        );
+        bool verified = _verifyProof(chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof);
         require(verified, "Proof of inclusion verification failed");
 
         processedQueries[queryId] = true;
@@ -60,35 +61,22 @@ abstract contract MarketBase {
         uint64 chainKey,
         uint64 blockHeight,
         bytes calldata encodedTransaction,
-        bytes32 merkleRoot,
-        INativeQueryVerifier.MerkleProofEntry[] calldata siblings,
-        bytes32 lowerEndpointDigest,
-        bytes32[] calldata continuityRoots
+        INativeQueryVerifier.MerkleProof calldata merkleProof,
+        INativeQueryVerifier.ContinuityProof calldata continuityProof
     ) internal returns (bool verified) {
-        INativeQueryVerifier.MerkleProof memory merkleProof =
-            INativeQueryVerifier.MerkleProof({root: merkleRoot, siblings: siblings});
-
-        INativeQueryVerifier.ContinuityProof memory continuityProof =
-            INativeQueryVerifier.ContinuityProof({
-                lowerEndpointDigest: lowerEndpointDigest,
-                roots: continuityRoots
-            });
-
-        verified = VERIFIER.verifyAndEmit(chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof);
+        verified = VERIFIER.verifyAndEmit(
+            chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof
+        );
     }
 
     function _computeQueryId(
         uint64 chainKey,
         uint64 blockHeight,
-        bytes32 merkleRoot,
-        INativeQueryVerifier.MerkleProofEntry[] calldata siblings
+        INativeQueryVerifier.MerkleProof calldata merkleProof
     ) internal view returns (bytes32 queryId) {
-        INativeQueryVerifier.MerkleProof memory merkleProof =
-            INativeQueryVerifier.MerkleProof({root: merkleRoot, siblings: siblings});
-
         uint256 txIndex = VERIFIER.calculateTxIndex(merkleProof);
 
-        assembly {
+        assembly ("memory-safe") {
             let ptr := mload(0x40)
             mstore(ptr, chainKey)
             mstore(add(ptr, 32), shl(192, blockHeight))
