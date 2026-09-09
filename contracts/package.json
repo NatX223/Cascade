@@ -9,7 +9,11 @@
     "coverage": "hardhat coverage",
     "node": "hardhat node",
     "deploy:local": "hardhat ignition deploy ignition/modules/Lock.ts --network localhost",
-    "deploy:creditcoin-testnet": "hardhat ignition deploy ignition/modules/Lock.ts --network creditcoinTestnet"
+    "deploy:creditcoin-testnet": "hardhat ignition deploy ignition/modules/Lock.ts --network creditcoinTestnet",
+    "deploy:markets:local": "hardhat ignition deploy ignition/modules/Markets.ts --network localhost",
+    "deploy:markets:creditcoin-testnet": "hardhat ignition deploy ignition/modules/Markets.ts --network creditcoinTestnet",
+    "market:create": "hardhat run scripts/interactions/createMarket.ts --network creditcoinTestnet",
+    "market:bet": "hardhat run scripts/interactions/bet.ts --network creditcoinTestnet"
   },
   "keywords": [],
   "author": "",
