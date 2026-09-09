@@ -17,8 +17,12 @@ abstract contract MarketBase {
     /// @notice The Native Query Verifier precompile instance.
     INativeQueryVerifier public immutable VERIFIER;
 
-    /// @notice queryId => whether this proof has already been used to resolve a market.
-    mapping(bytes32 => bool) public processedQueries;
+    /// @notice marketId => queryId => whether this proof has already been used to
+    ///         resolve THIS market. Scoped per-market, not global — the same source
+    ///         transaction may legitimately be relevant to more than one market (e.g.
+    ///         a transfer that matches two different watched conditions), and each
+    ///         market must independently be able to consume it once.
+    mapping(uint256 => mapping(bytes32 => bool)) public processedQueries;
 
     constructor() {
         VERIFIER = NativeQueryVerifierLib.getVerifier();
@@ -45,12 +49,12 @@ abstract contract MarketBase {
     ) external returns (bool success) {
         bytes32 queryId = _computeQueryId(chainKey, blockHeight, merkleProof);
 
-        require(!processedQueries[queryId], "Query already processed");
+        require(!processedQueries[marketId][queryId], "Query already processed for this market");
 
         bool verified = _verifyProof(chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof);
         require(verified, "Proof of inclusion verification failed");
 
-        processedQueries[queryId] = true;
+        processedQueries[marketId][queryId] = true;
 
         _resolveMarket(marketId, queryId, encodedTransaction);
 
