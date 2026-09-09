@@ -77,6 +77,36 @@ export interface MarketProgress {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Resolution — Attestcoin proof + Markets.resolve(...) submission
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ResolutionStatus =
+  | "queued" // waiting for the worker to pick it up
+  | "proving" // waiting on attestation / fetching the proof
+  | "submitting" // resolve() tx sent, awaiting receipt
+  | "submitted" // resolve() mined; MarketResolved not seen in the receipt
+  | "resolved" // resolve() mined and emitted MarketResolved
+  | "failed"; // gave up after RESOLUTION_MAX_ATTEMPTS
+
+/** One market's progress toward having its condition verified on-chain. */
+export interface ResolutionJobRecord {
+  marketId: string;
+  /** Source-chain tx that met the condition — the thing we prove. */
+  transactionHash: string;
+  /** Attestcoin chainKey the source tx lives on. */
+  chainKey: string;
+  status: ResolutionStatus;
+  attempts: number;
+  lastError: string | null;
+  /** MARKETS-chain tx hash of the resolve() call, once submitted. */
+  resolveTxHash: string | null;
+  /** Outcome parsed from the MarketResolved event, once mined. */
+  outcome: boolean | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Indexer bookkeeping
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ import type {
   IndexerCursor,
   MarketProgress,
   MarketRecord,
+  ResolutionJobRecord,
   SourceEventRecord,
 } from "../types.js";
 
@@ -39,6 +40,20 @@ export interface MarketProgressRepository {
 export interface CursorRepository {
   get(key: string): Promise<IndexerCursor | null>;
   set(cursor: IndexerCursor): Promise<void>;
+}
+
+export interface ResolutionRepository {
+  /** One job per (marketId, transactionHash) — a Cumulative market proves many txs. */
+  get(marketId: string, transactionHash: string): Promise<ResolutionJobRecord | null>;
+  upsert(job: ResolutionJobRecord): Promise<void>;
+  patch(
+    marketId: string,
+    transactionHash: string,
+    patch: Partial<ResolutionJobRecord>,
+  ): Promise<void>;
+  listByMarket(marketId: string): Promise<ResolutionJobRecord[]>;
+  /** Jobs not yet in a terminal state (submitted/resolved/failed). */
+  listPending(): Promise<ResolutionJobRecord[]>;
 }
 
 // ── In-memory implementations ───────────────────────────────────────────────
@@ -121,6 +136,44 @@ class InMemoryMarketProgressRepository implements MarketProgressRepository {
   }
 }
 
+class InMemoryResolutionRepository implements ResolutionRepository {
+  private readonly jobs = new Map<string, ResolutionJobRecord>();
+
+  private key(marketId: string, transactionHash: string): string {
+    return `${marketId}:${transactionHash.toLowerCase()}`;
+  }
+
+  async get(marketId: string, transactionHash: string): Promise<ResolutionJobRecord | null> {
+    return this.jobs.get(this.key(marketId, transactionHash)) ?? null;
+  }
+
+  async upsert(job: ResolutionJobRecord): Promise<void> {
+    this.jobs.set(this.key(job.marketId, job.transactionHash), job);
+  }
+
+  async patch(
+    marketId: string,
+    transactionHash: string,
+    patch: Partial<ResolutionJobRecord>,
+  ): Promise<void> {
+    const k = this.key(marketId, transactionHash);
+    const existing = this.jobs.get(k);
+    if (!existing) return;
+    this.jobs.set(k, { ...existing, ...patch, updatedAt: new Date().toISOString() });
+  }
+
+  async listByMarket(marketId: string): Promise<ResolutionJobRecord[]> {
+    return [...this.jobs.values()]
+      .filter((j) => j.marketId === marketId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async listPending(): Promise<ResolutionJobRecord[]> {
+    const terminal = new Set(["submitted", "resolved", "failed"]);
+    return [...this.jobs.values()].filter((j) => !terminal.has(j.status));
+  }
+}
+
 class InMemoryCursorRepository implements CursorRepository {
   private readonly cursors = new Map<string, IndexerCursor>();
 
@@ -148,6 +201,7 @@ export interface Repositories {
   events: EventRepository;
   sourceEvents: SourceEventRepository;
   progress: MarketProgressRepository;
+  resolutions: ResolutionRepository;
   cursor: CursorRepository;
 }
 
@@ -156,5 +210,6 @@ export const repositories: Repositories = {
   events: new InMemoryEventRepository(),
   sourceEvents: new InMemorySourceEventRepository(),
   progress: new InMemoryMarketProgressRepository(),
+  resolutions: new InMemoryResolutionRepository(),
   cursor: new InMemoryCursorRepository(),
 };

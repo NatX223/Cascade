@@ -33,13 +33,14 @@ marketsRouter.get("/:id", async (req, res) => {
   const market = await repositories.markets.get(id);
   if (!market) return res.status(404).json({ error: "market not found" });
 
-  const [progress, events, sourceEvents] = await Promise.all([
+  const [progress, events, sourceEvents, resolutions] = await Promise.all([
     repositories.progress.get(id),
     repositories.events.listByMarket(id),
     repositories.sourceEvents.listByMarket(id),
+    repositories.resolutions.listByMarket(id),
   ]);
 
-  res.json({ market, progress, events, sourceEvents });
+  res.json({ market, progress, events, sourceEvents, resolutions });
 });
 
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {

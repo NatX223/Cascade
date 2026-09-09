@@ -7,6 +7,7 @@
 import { getAddress } from "viem";
 import { repositories } from "../db/repositories.js";
 import { logger } from "../logger.js";
+import { enqueueResolution } from "../resolution/queue.js";
 import type { MarketProgress, MarketRecord, SourceEventRecord } from "../types.js";
 
 const log = logger.child({ module: "indexer:matcher" });
@@ -173,6 +174,15 @@ async function advanceProgress(
     conditionMet ? "market condition MET — ready to resolve" : "market progress updated",
   );
 
-  // TODO: when conditionMet, enqueue a resolution job: fetch the Attestcoin
-  // proof for entry.transactionHash and call Markets.resolve(...).
+  // Hand this tx off to the resolution worker, which fetches its Attestcoin
+  // proof and submits Markets.resolve(...). For a Cumulative market every
+  // contributing tx must be proven on-chain to move the on-chain accumulator, so
+  // enqueue each match; for SingleEvent/Occurrence only the triggering tx
+  // matters. Fire-and-forget — it only writes the in-memory job store and must
+  // not slow the poll.
+  if (conditionMet || market.marketType === "Cumulative") {
+    void enqueueResolution(market.marketId, entry.transactionHash, market.chainKey).catch((err) =>
+      log.error({ err, marketId: market.marketId }, "failed to enqueue resolution"),
+    );
+  }
 }
