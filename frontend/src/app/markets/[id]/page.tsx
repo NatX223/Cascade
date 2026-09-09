@@ -2,11 +2,15 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { parseEther } from "viem";
+import { useAccount, useChainId, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import landing from "../../page.module.css";
 import marketsStyles from "../page.module.css";
 import styles from "./page.module.css";
 import { MARKETS, ABI_EVENTS, type Market } from "@/lib/cascade-data";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
+import { creditcoinTestnet } from "@/config/web3";
+import { DEFAULT_MARKET_ID, MARKETS_CONTRACT_ADDRESS, marketsAbi } from "@/lib/contracts/markets";
 
 const EM_DASH = "—";
 
@@ -270,6 +274,58 @@ function MarketDetail({ market: m }: { market: Market }) {
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [stake, setStake] = useState("10");
 
+  // ── On-chain bet wiring ──────────────────────────────────────────────────
+  // The UI still lists mock markets, so every bet is placed against one real
+  // deployed market (DEFAULT_MARKET_ID) for now. See lib/contracts/markets.ts.
+  const { isConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
+  const [betPending, setBetPending] = useState(false);
+  const [betError, setBetError] = useState<string | null>(null);
+  const [betTxHash, setBetTxHash] = useState<string | null>(null);
+
+  async function placeBet() {
+    setBetError(null);
+    setBetTxHash(null);
+    if (!isConnected) {
+      setBetError("Connect a wallet to place a bet.");
+      return;
+    }
+    let value: bigint;
+    try {
+      value = parseEther((stake || "0").trim());
+    } catch {
+      setBetError("Enter a valid stake amount.");
+      return;
+    }
+    if (value <= BigInt(0)) {
+      setBetError("Enter a stake greater than 0.");
+      return;
+    }
+    setBetPending(true);
+    try {
+      if (chainId !== creditcoinTestnet.id) {
+        await switchChainAsync({ chainId: creditcoinTestnet.id });
+      }
+      const hash = await writeContractAsync({
+        address: MARKETS_CONTRACT_ADDRESS,
+        abi: marketsAbi,
+        functionName: "bet",
+        args: [DEFAULT_MARKET_ID, side === "yes"],
+        value,
+      });
+      setBetTxHash(hash);
+      await publicClient?.waitForTransactionReceipt({ hash });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Transaction failed";
+      setBetError(message.length > 200 ? message.slice(0, 200) + "…" : message);
+    } finally {
+      setBetPending(false);
+    }
+  }
+
   const no = 100 - m.yes;
   const price = (side === "yes" ? m.yes : no) / 100;
   const stakeNum = Math.max(0, parseFloat(stake) || 0);
@@ -474,12 +530,30 @@ function MarketDetail({ market: m }: { market: Market }) {
               </div>
 
               <button
+                onClick={placeBet}
+                disabled={betPending}
                 className={`${landing.corner} ${styles.ctaBtn}`}
-                style={{ fontFamily: "'General Sans', sans-serif", fontSize: 16, fontWeight: 500, color: "#0A0A16", background: ctaBg, border: "none", padding: 16, borderRadius: 16, cursor: "pointer" }}
+                style={{ fontFamily: "'General Sans', sans-serif", fontSize: 16, fontWeight: 500, color: "#0A0A16", background: ctaBg, border: "none", padding: 16, borderRadius: 16, cursor: betPending ? "wait" : "pointer", opacity: betPending ? 0.7 : 1 }}
               >
-                {ctaLabel}
+                {betPending ? "Confirming…" : ctaLabel}
               </button>
-              <p style={{ margin: 0, fontSize: 12.5, color: "#6B6889", textAlign: "center" }}>Positions lock the moment the proof is submitted.</p>
+              {betError ? (
+                <p style={{ margin: 0, fontSize: 12.5, color: "#FF5C7A", textAlign: "center", overflowWrap: "anywhere" }}>{betError}</p>
+              ) : betTxHash ? (
+                <p style={{ margin: 0, fontSize: 12.5, color: "#3DDC97", textAlign: "center" }}>
+                  Bet placed {EM_DASH}{" "}
+                  <a
+                    href={`${creditcoinTestnet.blockExplorers?.default.url ?? ""}/tx/${betTxHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "#3DDC97", textDecoration: "underline" }}
+                  >
+                    view transaction
+                  </a>
+                </p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 12.5, color: "#6B6889", textAlign: "center" }}>Positions lock the moment the proof is submitted.</p>
+              )}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

@@ -10,10 +10,15 @@
 import type { Address } from "viem";
 
 /// Deployed address of Markets.sol on Creditcoin testnet (chain 102031, see
-/// src/config/web3.ts). Nothing has been deployed yet — set
-/// NEXT_PUBLIC_MARKETS_CONTRACT_ADDRESS once it is, or edit the fallback below.
+/// src/config/web3.ts). Defaults to the current testnet deployment; override
+/// with NEXT_PUBLIC_MARKETS_CONTRACT_ADDRESS for a different one.
 export const MARKETS_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_MARKETS_CONTRACT_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0x0a0d9f5875b54d9adfa4Fc121D9C5f70EEE2450f") as Address;
+
+/// Every market card in the UI still renders from mock data (src/lib/cascade-data.ts),
+/// so on-chain bets are all pointed at this one real market for now. Swap for the
+/// route's real id once the list/detail pages read from the contract.
+export const DEFAULT_MARKET_ID = BigInt(0);
 
 /// Attestcoin's chainKey identifier for Ethereum Sepolia, passed as
 /// `createMarket`'s `chainKey` param. UNCONFIRMED — defaulted to Sepolia's
