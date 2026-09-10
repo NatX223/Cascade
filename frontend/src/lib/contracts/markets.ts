@@ -15,9 +15,9 @@ import type { Address } from "viem";
 export const MARKETS_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_MARKETS_CONTRACT_ADDRESS ||
   "0x0a0d9f5875b54d9adfa4Fc121D9C5f70EEE2450f") as Address;
 
-/// Every market card in the UI still renders from mock data (src/lib/cascade-data.ts),
-/// so on-chain bets are all pointed at this one real market for now. Swap for the
-/// route's real id once the list/detail pages read from the contract.
+/// Fallback market id. The list/detail pages now read real markets from the
+/// backend + `getMarket`, and bets target the route's real id — this stays only
+/// for scripts/tests that want a known-good id.
 export const DEFAULT_MARKET_ID = BigInt(0);
 
 /// Attestcoin's chainKey identifier for Ethereum Sepolia, passed as
@@ -40,6 +40,14 @@ export const AAVE_SUPPLY_SIG = "0x2b627736bca15cd5381dcf80b0bf11fd197d01a037c52b
 export const AAVE_BORROW_SIG = "0xb3d084820fb1a9decffb176436bd02558d15fac9b0ddfed8c465bc7359d7dce0" as const;
 export const UNISWAP_V3_SWAP_SIG = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67" as const;
 export const ERC20_TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" as const;
+
+/** topics[0] → readable event name, for rendering a market's watch config. */
+export const EVENT_SIGNATURE_NAME: Record<string, string> = {
+  [AAVE_SUPPLY_SIG]: "Aave Supply",
+  [AAVE_BORROW_SIG]: "Aave Borrow",
+  [UNISWAP_V3_SWAP_SIG]: "Uniswap V3 Swap",
+  [ERC20_TRANSFER_SIG]: "ERC-20 Transfer",
+};
 
 // ─────────────────────────────────────────────────────────────────────────
 // Enums — ordinal values must match the Solidity enum declaration order in
@@ -69,6 +77,29 @@ export const MarketStatus = {
   Resolved: 1,
   Cancelled: 2,
 } as const;
+
+// Reverse lookups — the contract takes/emits the ordinal, but the backend
+// (and Firestore) store the readable name. Keyed by the uint8 that goes on-chain.
+export const MarketTypeName: Record<number, "SingleEvent" | "Cumulative"> = {
+  0: "SingleEvent",
+  1: "Cumulative",
+};
+
+export const EventTemplateName: Record<
+  number,
+  "Occurrence" | "SingleWordValue" | "AddressPrefixedValue" | "EventCount"
+> = {
+  0: "Occurrence",
+  1: "SingleWordValue",
+  2: "AddressPrefixedValue",
+  3: "EventCount",
+};
+
+export const ComparisonOperatorName: Record<number, "GTE" | "LTE" | "EQ"> = {
+  0: "GTE",
+  1: "LTE",
+  2: "EQ",
+};
 
 // ─────────────────────────────────────────────────────────────────────────
 // ABI

@@ -1,43 +1,49 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import landing from "../page.module.css";
 import styles from "./page.module.css";
-import { MARKETS, type Market, type MarketStatus } from "@/lib/cascade-data";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 import { CreateMarketModal } from "@/components/CreateMarketModal";
+import { useMarketsList } from "@/lib/useMarkets";
+import type { MarketStatusKey, MarketView } from "@/lib/market-view";
 
 const EM_DASH = "—";
 
-const TAB_DEFS: [MarketStatus | "all", string][] = [
+const TAB_DEFS: [MarketStatusKey | "all", string][] = [
   ["open", "Open"],
-  ["verifying", "Verifying"],
   ["resolved", "Resolved"],
+  ["cancelled", "Cancelled"],
   ["all", "All"],
 ];
 
-type Filter = MarketStatus | "all";
+type Filter = MarketStatusKey | "all";
 type SortKey = "pool" | "deadline" | "split";
 
-function decorate(m: Market) {
-  const statusLabel =
-    m.status === "open" ? (m.contract ? "Open · yours" : "Open") : m.status === "verifying" ? "Verifying" : "Resolved";
-  const statusColor = m.status === "open" ? "#3DDC97" : m.status === "verifying" ? "#2FE6D9" : "#A5A3BE";
+function decorate(v: MarketView) {
   return {
-    ...m,
-    statusLabel,
-    statusColor,
-    pulsing: m.status === "verifying",
-    yesWidth: `${m.yes}%`,
-    noWidth: `${100 - m.yes}%`,
-    poolLabel: m.pool.toFixed(1),
-    isOpen: m.status === "open",
-    isVerifying: m.status === "verifying",
-    isResolved: m.status === "resolved",
-    outcomeLabel: m.outcome === "yes" ? "Resolved yes" : "Resolved no",
-    outcomeColor: m.outcome === "yes" ? "#3DDC97" : "#FF5C7A",
-    payoutLine: m.payout || "",
+    id: v.id,
+    question: v.question,
+    deadline:
+      v.statusKey === "open"
+        ? v.deadlinePassed
+          ? "Awaiting resolution"
+          : `Resolves ${v.deadlineLabel}`
+        : `Deadline ${v.deadlineLabel}`,
+    statusLabel: v.statusLabel,
+    statusColor: v.statusColor,
+    pulsing: v.statusKey === "open" && v.deadlinePassed,
+    yesWidth: `${v.yesPct}%`,
+    noWidth: `${100 - v.yesPct}%`,
+    poolLabel: v.hasChain ? v.poolLabel : EM_DASH,
+    isOpen: v.statusKey === "open",
+    isVerifying: false,
+    isResolved: v.statusKey === "resolved",
+    isCancelled: v.statusKey === "cancelled",
+    outcomeLabel: v.outcome === "yes" ? "Resolved yes" : v.outcome === "no" ? "Resolved no" : "Cancelled",
+    outcomeColor: v.outcome === "yes" ? "#3DDC97" : v.outcome === "no" ? "#FF5C7A" : "#A5A3BE",
+    payoutLine: v.hasChain ? `${v.poolLabel} CTC pool` : "",
   };
 }
 
@@ -110,22 +116,30 @@ export default function MarketsPage() {
   const openCreate = () => setModalOpen(true);
   const closeCreate = () => setModalOpen(false);
 
+  const { markets, isLoading, isError, error, refetch } = useMarketsList();
+
   const q = query.trim().toLowerCase();
-  const matches = (m: Market) =>
-    (filter === "all" || m.status === filter) &&
-    (!q || (m.question + " " + (m.contract || "")).toLowerCase().includes(q));
-  const cmp =
-    sort === "pool"
-      ? (a: Market, b: Market) => b.pool - a.pool
-      : sort === "deadline"
-        ? (a: Market, b: Market) => a.block - b.block
-        : (a: Market, b: Market) => Math.abs(50 - a.yes) - Math.abs(50 - b.yes);
+  const list = useMemo(() => {
+    const matches = (v: MarketView) =>
+      (filter === "all" || v.statusKey === filter) &&
+      (!q ||
+        `${v.question} ${v.sourceContract} ${v.watchedAddress ?? ""} ${v.creator}`
+          .toLowerCase()
+          .includes(q));
+    const cmp =
+      sort === "pool"
+        ? (a: MarketView, b: MarketView) => b.poolCtc - a.poolCtc
+        : sort === "deadline"
+          ? (a: MarketView, b: MarketView) => a.deadlineSec - b.deadlineSec
+          : (a: MarketView, b: MarketView) => Math.abs(50 - a.yesPct) - Math.abs(50 - b.yesPct);
+    return markets.filter(matches).sort(cmp);
+  }, [markets, filter, q, sort]);
 
-  const list = MARKETS.filter(matches).slice().sort(cmp);
-
-  const openCount = MARKETS.filter((m) => m.status === "open").length;
-  const totalPool = MARKETS.filter((m) => m.status !== "resolved").reduce((s, m) => s + m.pool, 0);
-  const countLine = `${list.length}${list.length === 1 ? " market" : " markets"} shown ${EM_DASH} ${openCount} open right now, ${totalPool.toFixed(1)} CTC in live pools`;
+  const openCount = markets.filter((m) => m.statusKey === "open").length;
+  const totalPool = markets.reduce((s, m) => s + m.poolCtc, 0);
+  const countLine = isLoading
+    ? "Loading markets…"
+    : `${list.length}${list.length === 1 ? " market" : " markets"} shown ${EM_DASH} ${openCount} open right now, ${totalPool.toFixed(2)} CTC in live pools`;
 
   return (
     <div
@@ -240,7 +254,7 @@ export default function MarketsPage() {
                 className={`${landing.corner} ${landing.livePulse}`}
                 style={{ width: 7, height: 7, borderRadius: 3, background: "#FF4FD8" }}
               />
-              Watching 1,284 addresses live
+              {openCount} open {openCount === 1 ? "market" : "markets"} live
             </div>
             <button
               onClick={openCreate}
@@ -338,6 +352,18 @@ export default function MarketsPage() {
 
         <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6B6889", fontVariantNumeric: "tabular-nums" }}>{countLine}</p>
 
+        {isLoading && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className={`${landing.corner} ${landing.livePulse}`}
+                style={{ height: 220, background: "#151527", border: "1px solid #28283F", borderRadius: 28 }}
+              />
+            ))}
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20 }}>
           {list.map((raw) => {
             const m = decorate(raw);
@@ -376,28 +402,30 @@ export default function MarketsPage() {
 
                 {m.isOpen && (
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button
+                    <Link
+                      href={`/markets/${m.id}`}
                       className={`${landing.corner} ${landing.btnYes}`}
-                      style={{ flex: 1, fontFamily: "'General Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#3DDC97", background: "rgba(61,220,151,.1)", border: "1px solid rgba(61,220,151,.28)", padding: 11, borderRadius: 14, cursor: "pointer" }}
+                      style={{ flex: 1, textAlign: "center", fontFamily: "'General Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#3DDC97", background: "rgba(61,220,151,.1)", border: "1px solid rgba(61,220,151,.28)", padding: 11, borderRadius: 14, cursor: "pointer" }}
                     >
-                      Yes
-                    </button>
-                    <button
+                      Bet Yes
+                    </Link>
+                    <Link
+                      href={`/markets/${m.id}`}
                       className={`${landing.corner} ${landing.btnNo}`}
-                      style={{ flex: 1, fontFamily: "'General Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#FF5C7A", background: "rgba(255,92,122,.1)", border: "1px solid rgba(255,92,122,.28)", padding: 11, borderRadius: 14, cursor: "pointer" }}
+                      style={{ flex: 1, textAlign: "center", fontFamily: "'General Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#FF5C7A", background: "rgba(255,92,122,.1)", border: "1px solid rgba(255,92,122,.28)", padding: 11, borderRadius: 14, cursor: "pointer" }}
                     >
-                      No
-                    </button>
+                      Bet No
+                    </Link>
                   </div>
                 )}
 
-                {m.isVerifying && (
+                {m.isCancelled && (
                   <div
                     className={landing.corner}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", background: "#0A0A16", border: "1px solid #28283F", borderRadius: 14, fontSize: 14, color: "#A5A3BE" }}
                   >
-                    <span>Proof submitted, verifying on-chain</span>
-                    <span style={{ color: "#2FE6D9" }}>Positions locked</span>
+                    <span>Market cancelled</span>
+                    <span style={{ color: "#FF5C7A" }}>Stakes refundable</span>
                   </div>
                 )}
 
@@ -424,13 +452,33 @@ export default function MarketsPage() {
           })}
         </div>
 
-        {list.length === 0 && (
+        {isError && (
+          <div className={landing.corner} style={{ marginTop: 8, padding: "48px 40px", textAlign: "center", background: "#151527", border: "1px solid rgba(255,92,122,.3)", borderRadius: 32 }}>
+            <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 24, letterSpacing: "-0.02em", margin: 0, color: "#FF5C7A" }}>
+              Couldn&apos;t load markets
+            </h2>
+            <p style={{ margin: "12px auto 22px", color: "#A5A3BE", maxWidth: "52ch", overflowWrap: "anywhere" }}>
+              {error?.message || "The backend isn't reachable."} Is the Cascade backend running on {process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000"}?
+            </p>
+            <button
+              onClick={() => refetch()}
+              className={`${landing.corner} ${styles.ghostOutline}`}
+              style={{ fontFamily: "'General Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#F5F4FB", background: "#1E1E36", border: "1px solid #28283F", padding: "13px 22px", borderRadius: 14, cursor: "pointer" }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !isError && list.length === 0 && (
           <div className={landing.corner} style={{ marginTop: 8, padding: "64px 40px", textAlign: "center", background: "#151527", border: "1px solid #28283F", borderRadius: 32 }}>
             <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 28, letterSpacing: "-0.02em", margin: 0 }}>
-              No markets match that search
+              {markets.length === 0 ? "No markets yet" : "No markets match that search"}
             </h2>
             <p style={{ margin: "12px auto 26px", color: "#A5A3BE", maxWidth: "52ch" }}>
-              Try a different address or contract, or open a market on any on-chain event you can point to a block for.
+              {markets.length === 0
+                ? "Be the first — create a market on any Aave, Uniswap or ERC-20 event you can point to."
+                : "Try a different address or contract, or clear the filters."}
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
               <button

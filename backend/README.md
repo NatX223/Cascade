@@ -102,6 +102,14 @@ no markets, so the source watcher polls nothing (its cursor still advances).
 | GET    | `/health`       | last indexed block on each chain                        |
 | GET    | `/markets`      | `?status=Open&limit=100&offset=0`                       |
 | GET    | `/markets/:id`  | config + `progress` + Markets.sol events + source events |
+| POST   | `/markets`      | persist a frontend-created market to Firestore (needs `CRED`); `503` if unset, idempotent on `marketId` |
+
+## Firebase
+
+`src/services/firebase.ts` bootstraps `firebase-admin` from `CRED` — the base64
+of a service account JSON. Init is lazy + idempotent; without `CRED` the backend
+still runs and only Firestore-backed routes (`POST /markets`) return `503`.
+`src/services/firebaseService.ts` is a thin Firestore helper used by those routes.
 
 ## Signature check
 

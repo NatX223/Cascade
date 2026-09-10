@@ -8,15 +8,19 @@ import landing from "@/app/page.module.css";
 import styles from "@/app/markets/page.module.css";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 import { creditcoinTestnet } from "@/config/web3";
+import { persistCreatedMarket } from "@/lib/api";
 import {
   AAVE_BORROW_SIG,
   AAVE_SUPPLY_SIG,
   AAVE_V3_POOL,
   ComparisonOperator,
+  ComparisonOperatorName,
   ERC20_TRANSFER_SIG,
   EventTemplate,
+  EventTemplateName,
   MARKETS_CONTRACT_ADDRESS,
   MarketType,
+  MarketTypeName,
   SEPOLIA_CHAIN_KEY,
   UNISWAP_V3_SWAP_SIG,
   erc20Abi,
@@ -374,6 +378,37 @@ export function CreateMarketModal({ open, onClose }: { open: boolean; onClose: (
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       const [created] = parseEventLogs({ abi: marketsAbi, eventName: "MarketCreated", logs: receipt.logs });
       const marketId = created?.args?.marketId;
+
+      // Mirror the on-chain market into Firestore (via the backend) so the app
+      // can show the human-readable question and preset the contract doesn't
+      // store. The market already exists on-chain — a failure here is logged
+      // but must not block the user.
+      if (marketId !== undefined && account) {
+        const [mType, eTemplate, cKey, srcContract, eSignature, watched, cmp, thr, dline] = args;
+        try {
+          await persistCreatedMarket({
+            marketId: marketId.toString(),
+            creator: account,
+            txHash: hash,
+            question: preview ?? "",
+            preset,
+            marketType: MarketTypeName[mType],
+            eventTemplate: EventTemplateName[eTemplate],
+            comparisonOperator: ComparisonOperatorName[cmp],
+            chainKey: cKey.toString(),
+            sourceContract: srcContract,
+            eventSignature: eSignature,
+            watchedAddress: watched,
+            threshold: thr.toString(),
+            thresholdDisplay: thresholdHuman.trim() || undefined,
+            tokenSymbol: activeTokenMeta?.symbol ?? undefined,
+            tokenDecimals: activeTokenMeta?.decimals ?? undefined,
+            deadline: dline.toString(),
+          });
+        } catch (persistErr) {
+          console.warn("Market created on-chain but not saved to Firestore:", persistErr);
+        }
+      }
 
       reset();
       onClose();

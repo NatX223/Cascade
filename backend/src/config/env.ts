@@ -49,6 +49,11 @@ const schema = z.object({
   RESOLUTION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   PROOF_ATTEST_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15_000),
   PROOF_ATTEST_TIMEOUT_MS: z.coerce.number().int().positive().default(1_200_000),
+
+  // ── Firebase ───────────────────────────────────────────────────────────────
+  // Base64-encoded Firebase service account JSON. Unset ⇒ Firestore-backed
+  // code paths throw when hit, but the backend still boots.
+  CRED: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);

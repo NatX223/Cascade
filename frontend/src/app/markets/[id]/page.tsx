@@ -2,89 +2,67 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { parseEther } from "viem";
+import { formatEther, parseEther } from "viem";
 import { useAccount, useChainId, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import landing from "../../page.module.css";
 import marketsStyles from "../page.module.css";
 import styles from "./page.module.css";
-import { MARKETS, ABI_EVENTS, type Market } from "@/lib/cascade-data";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 import { creditcoinTestnet } from "@/config/web3";
-import { DEFAULT_MARKET_ID, MARKETS_CONTRACT_ADDRESS, marketsAbi } from "@/lib/contracts/markets";
+import { MARKETS_CONTRACT_ADDRESS, marketsAbi } from "@/lib/contracts/markets";
+import { shortAddress, type MarketView } from "@/lib/market-view";
+import { useMarket } from "@/lib/useMarkets";
 
 const EM_DASH = "—";
+const SANS = "'General Sans', sans-serif";
+const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-function hash01(seed: number, salt: number): number {
-  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
-  return x - Math.floor(x);
-}
+function deriveDetail(v: MarketView) {
+  const statusPulsing = v.statusKey === "open" && v.deadlinePassed;
 
-function pseudoAddress(seed: number, salt: number): string {
-  const chars = "0123456789abcdef";
-  let out = "0x";
-  for (let i = 0; i < 40; i++) {
-    out += chars[Math.floor(hash01(seed, salt * 97 + i + 1) * 16)];
-  }
-  return out;
-}
+  const ruleLine = `Settles from the ${v.eventName} log on the source chain ${EM_DASH} ${v.comparisonWord} ${v.thresholdLabel}${
+    v.isCumulative ? " in total" : ""
+  }.`;
 
-function shortAddr(addr: string): string {
-  return addr.length > 10 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
-}
-
-function deriveDetail(m: Market) {
-  const isCumulative = (m.kind ?? "cumulative") === "cumulative";
-  const typeLabel = isCumulative ? "Cumulative" : "One-off";
-  const abi = ABI_EVENTS[m.id % ABI_EVENTS.length];
-  const metricInput = abi.inputs[0];
-  const unit = metricInput ? metricInput[2] : "";
-
-  const ruleLine = m.rule || `Settles from the verified event log at block ${m.block.toLocaleString("en-US")}`;
-
-  const statusLabel =
-    m.status === "open" ? "Open" : m.status === "verifying" ? "Verifying" : m.outcome === "yes" ? "Resolved yes" : "Resolved no";
-  const statusColor = m.status === "open" ? "#3DDC97" : m.status === "verifying" ? "#2FE6D9" : "#A5A3BE";
-  const statusPulsing = m.status === "verifying";
-
-  const volume = m.pool * 3.1;
-  const traders = Math.max(8, Math.round(m.pool * 5.2));
-  const emissions = Math.max(3, Math.round(m.pool * 0.9) + Math.floor(hash01(m.id, 9) * 18));
-  const runningVal = Math.round((m.pool + emissions) * 10) / 10;
-  const targetVal = Math.max(1, Math.round(m.pool * 2));
-
-  const blocksBuffer = 1500 + Math.floor(hash01(m.id, 7) * 6000);
-  const currentBlock = m.status === "resolved" ? m.block : Math.max(0, m.block - blocksBuffer);
-  const openedBlock = Math.max(0, currentBlock - (3000 + Math.floor(hash01(m.id, 3) * 9000)));
-  const blocksLeft = Math.max(0, m.block - currentBlock);
-
-  const threshold = isCumulative ? `${targetVal}${unit ? " " + unit : ""}` : EM_DASH;
-  const condition = isCumulative ? "Rises above" : EM_DASH;
-  const contract = m.contract || pseudoAddress(m.id, 999);
-  const shortName = m.question.replace(/^Will |^Did /, "").replace(/\?$/, "");
-
-  const spec = [
-    { label: "Market name", value: shortName, font: "'General Sans', sans-serif" },
-    {
-      label: "Market type",
-      value: isCumulative
-        ? "Cumulative — emissions add up until the deadline block"
-        : "One-off — first matching emission settles it",
-      font: "'General Sans', sans-serif",
-    },
-    { label: "Contract address", value: contract, font: "ui-monospace, Menlo, monospace" },
-    { label: "Event ABI", value: abi.signature, font: "ui-monospace, Menlo, monospace" },
-    { label: "Tracked metric", value: metricInput ? `${metricInput[0]} ${EM_DASH} ${metricInput[1]}` : EM_DASH, font: "ui-monospace, Menlo, monospace" },
-    { label: "Condition", value: condition, font: "'General Sans', sans-serif" },
-    { label: "Threshold", value: threshold, font: "'General Sans', sans-serif" },
-    { label: "Deadline block", value: `${m.block.toLocaleString("en-US")} · Ethereum Sepolia`, font: "'General Sans', sans-serif" },
+  const stats = [
+    { label: "Pool", value: v.hasChain ? `${v.poolLabel} CTC` : EM_DASH },
+    { label: "Yes pool", value: v.hasChain ? `${formatEther(v.yesPool)} CTC` : EM_DASH },
+    { label: "No pool", value: v.hasChain ? `${formatEther(v.noPool)} CTC` : EM_DASH },
+    { label: v.deadlinePassed ? "Deadline" : "Time left", value: v.deadlinePassed ? "Passed" : v.timeLeftLabel },
   ];
 
-  const stepReached = m.status === "resolved" ? 4 : m.status === "verifying" ? 2 : 1;
+  const spec = [
+    {
+      label: "Market type",
+      value: v.isCumulative
+        ? "Cumulative — matching events add up until the deadline"
+        : "One-off — the first matching event settles it",
+      font: SANS,
+    },
+    { label: "Watched event", value: v.eventName, font: SANS },
+    { label: "Source contract", value: v.sourceContract, font: MONO },
+    { label: "Event signature", value: v.eventSignature, font: MONO },
+    ...(v.watchedAddress ? [{ label: "Watched address", value: v.watchedAddress, font: MONO }] : []),
+    { label: "Condition", value: `${v.comparisonWord} ${v.thresholdLabel}`, font: SANS },
+    { label: "Deadline", value: v.deadlineLabel, font: SANS },
+    { label: "Created by", value: v.creator, font: MONO },
+  ];
+
+  const stepReached = v.statusKey === "resolved" || v.statusKey === "cancelled" ? 3 : v.deadlinePassed ? 2 : 1;
   const stepDefs: [string, string][] = [
-    ["Market opened", `Block ${openedBlock.toLocaleString("en-US")} · spec locked`],
-    ["Watching emissions", `${emissions} ${abi.name} events indexed · ${runningVal.toFixed(1)} ${unit || "units"} counted`],
-    ["Deadline block", `Block ${m.block.toLocaleString("en-US")} · positions lock here`],
-    ["Proof verified, payouts released", m.status === "resolved" ? "Settled from the event log" : "Pending"],
+    ["Market opened", "Spec locked on-chain, betting open"],
+    ["Watching for the event", v.progressLabel],
+    ["Deadline", `${v.deadlineLabel} · positions lock`],
+    [
+      v.statusKey === "cancelled" ? "Cancelled" : "Resolved",
+      v.statusKey === "resolved"
+        ? v.outcome === "yes"
+          ? "Settled YES from the proof"
+          : "Settled NO from the proof"
+        : v.statusKey === "cancelled"
+          ? "Stakes are refundable"
+          : "Waiting on the Attestcoin proof",
+    ],
   ];
   const steps = stepDefs.map(([title, meta], i) => {
     const state = i < stepReached ? "done" : i === stepReached ? "active" : "todo";
@@ -99,79 +77,48 @@ function deriveDetail(m: Market) {
     };
   });
 
-  const positions = Array.from({ length: 6 }).map((_, i) => {
-    const addr = pseudoAddress(m.id, i + 1);
-    const isYes = hash01(m.id, i + 50) < m.yes / 100;
-    const size = (2 + hash01(m.id, i + 80) * 12).toFixed(1);
-    const blockOffset = Math.round(hash01(m.id, i + 120) * 400) + i * 60;
-    return {
-      address: shortAddr(addr),
-      side: isYes ? "Yes" : "No",
-      size: `${size} CTC`,
-      block: Math.max(0, currentBlock - blockOffset).toLocaleString("en-US"),
-      sideColor: isYes ? "#3DDC97" : "#FF5C7A",
-    };
-  });
-
-  const progressPct = !isCumulative
-    ? m.status === "resolved"
-      ? 100
-      : 35
-    : m.status === "resolved"
-      ? 100
-      : Math.min(96, Math.round((runningVal / targetVal) * 100));
-  const progressLine = !isCumulative
-    ? m.status === "resolved"
-      ? `Matching emission recorded at block ${currentBlock.toLocaleString("en-US")}`
-      : `Watching for a matching ${abi.name} emission before block ${m.block.toLocaleString("en-US")}`
-    : m.status === "resolved"
-      ? `Threshold crossed at block ${currentBlock.toLocaleString("en-US")} ${EM_DASH} market stays open until the deadline`
-      : `${Math.max(0, targetVal - runningVal).toFixed(1)} ${unit || "units"} to go ${EM_DASH} last emission at block ${currentBlock.toLocaleString("en-US")}`;
-
-  const mockStake = 12;
-  const winSidePct = m.outcome === "yes" ? m.yes : 100 - m.yes;
-  const mockPayout = winSidePct > 0 ? ((mockStake * 100) / winSidePct).toFixed(1) : "0.0";
-  const lockedTitle = m.status === "verifying" ? "Positions locked" : m.outcome === "yes" ? "Market resolved yes" : "Market resolved no";
+  const lockedTitle =
+    v.statusKey === "cancelled"
+      ? "Market cancelled"
+      : v.statusKey === "resolved"
+        ? v.outcome === "yes"
+          ? "Resolved yes"
+          : "Resolved no"
+        : "Awaiting resolution";
   const lockedBody =
-    m.status === "verifying"
-      ? "The proof is submitted and verifying on-chain. Nothing can be added or withdrawn until it settles."
-      : `The event log settled ${m.outcome} at block ${m.block.toLocaleString("en-US")}. Payouts were released to ${m.outcome} positions in the same transaction.`;
-  const lockedPosition = m.status === "resolved" ? `${mockStake.toFixed(1)} CTC ${m.outcome} ${EM_DASH} ${mockPayout} CTC paid` : `${mockStake.toFixed(1)} CTC yes`;
+    v.statusKey === "cancelled"
+      ? "This market was cancelled before it resolved. Anyone who staked can withdraw their bet in full."
+      : v.statusKey === "resolved"
+        ? `The proof settled this market ${v.outcome?.toUpperCase()}. Payouts went to ${v.outcome} positions in the same transaction.`
+        : "The deadline has passed. Once the Attestcoin proof lands, the market resolves and payouts are released.";
 
   return {
-    typeLabel,
+    typeLabel: v.typeLabel,
     ruleLine,
-    statusLabel,
-    statusColor,
+    statusLabel: v.statusLabel,
+    statusColor: v.statusColor,
     statusPulsing,
-    isCumulative,
-    stats: [
-      { label: "Pool", value: `${m.pool.toFixed(1)} CTC` },
-      { label: "Volume", value: `${volume.toFixed(1)} CTC` },
-      { label: "Traders", value: String(traders) },
-      { label: "Blocks left", value: blocksLeft.toLocaleString("en-US") },
-    ],
+    isCumulative: v.isCumulative,
+    stats,
     spec,
     steps,
-    positions,
-    traderLine: `${traders} addresses in this market`,
-    contract,
-    contractShort: shortAddr(contract),
-    eventName: `${abi.name}()`,
-    emissionsLabel: `${emissions} events`,
-    runningTotalLabel: `${runningVal.toFixed(1)} / ${targetVal} ${unit || "units"}`,
-    progressPct,
-    progressLine,
-    blocksLeft,
+    traderLine: v.hasChain ? `${v.yesPct}% YES · ${100 - v.yesPct}% NO by pool` : "No pool data yet",
+    contract: v.sourceContract,
+    contractShort: shortAddress(v.sourceContract),
+    eventName: v.eventName,
+    emissionsLabel: v.hasChain && v.accumulatedValue !== null ? v.progressLabel : EM_DASH,
+    runningTotalLabel: v.progressLabel,
+    progressPct: v.progressPct,
+    progressLine: v.progressLabel,
+    timeLeftLabel: v.deadlinePassed ? "Deadline passed" : v.timeLeftLabel,
     lockedTitle,
     lockedBody,
-    lockedPosition,
   };
 }
 
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const market = MARKETS.find((m) => m.id === Number(id)) ?? null;
+  const { view, isLoading, notFound, error, refetchChain } = useMarket(id);
 
   return (
     <div
@@ -227,16 +174,20 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             Markets
           </Link>
           <span>/</span>
-          <span style={{ color: "#A5A3BE" }}>{market ? `CSC-${String(market.id).padStart(4, "0")}` : id}</span>
+          <span style={{ color: "#A5A3BE" }}>{/^\d+$/.test(id) ? `CSC-${id.padStart(4, "0")}` : id}</span>
         </div>
 
-        {!market ? (
+        {isLoading ? (
+          <div className={`${landing.corner} ${landing.livePulse}`} style={{ marginTop: 22, height: 320, background: "#151527", border: "1px solid #28283F", borderRadius: 32 }} />
+        ) : !view || notFound ? (
           <div className={landing.corner} style={{ marginTop: 22, padding: "64px 40px", textAlign: "center", background: "#151527", border: "1px solid #28283F", borderRadius: 32 }}>
             <h1 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 28, letterSpacing: "-0.02em", margin: 0 }}>
-              Market not found
+              {error ? "Couldn't load this market" : "Market not found"}
             </h1>
-            <p style={{ margin: "12px auto 26px", color: "#A5A3BE", maxWidth: "52ch" }}>
-              This market doesn&apos;t exist, or it was created locally and isn&apos;t available on this page yet.
+            <p style={{ margin: "12px auto 26px", color: "#A5A3BE", maxWidth: "52ch", overflowWrap: "anywhere" }}>
+              {error
+                ? error.message
+                : "This market isn't in the registry. It may have been created on-chain without being saved, or the id is wrong."}
             </p>
             <Link
               href="/markets"
@@ -247,7 +198,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
             </Link>
           </div>
         ) : (
-          <MarketDetail market={market} />
+          <MarketDetail view={view} refetchChain={refetchChain} />
         )}
       </main>
 
@@ -269,14 +220,13 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   );
 }
 
-function MarketDetail({ market: m }: { market: Market }) {
-  const d = deriveDetail(m);
+function MarketDetail({ view: v, refetchChain }: { view: MarketView; refetchChain: () => void }) {
+  const d = deriveDetail(v);
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [stake, setStake] = useState("10");
 
   // ── On-chain bet wiring ──────────────────────────────────────────────────
-  // The UI still lists mock markets, so every bet is placed against one real
-  // deployed market (DEFAULT_MARKET_ID) for now. See lib/contracts/markets.ts.
+  // Bets go to this market's real on-chain id.
   const { isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -304,6 +254,10 @@ function MarketDetail({ market: m }: { market: Market }) {
       setBetError("Enter a stake greater than 0.");
       return;
     }
+    if (v.statusKey !== "open") {
+      setBetError("This market is no longer open.");
+      return;
+    }
     setBetPending(true);
     try {
       if (chainId !== creditcoinTestnet.id) {
@@ -313,11 +267,12 @@ function MarketDetail({ market: m }: { market: Market }) {
         address: MARKETS_CONTRACT_ADDRESS,
         abi: marketsAbi,
         functionName: "bet",
-        args: [DEFAULT_MARKET_ID, side === "yes"],
+        args: [BigInt(v.marketId), side === "yes"],
         value,
       });
       setBetTxHash(hash);
       await publicClient?.waitForTransactionReceipt({ hash });
+      refetchChain();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transaction failed";
       setBetError(message.length > 200 ? message.slice(0, 200) + "…" : message);
@@ -326,8 +281,8 @@ function MarketDetail({ market: m }: { market: Market }) {
     }
   }
 
-  const no = 100 - m.yes;
-  const price = (side === "yes" ? m.yes : no) / 100;
+  const no = 100 - v.yesPct;
+  const price = (side === "yes" ? v.yesPct : no) / 100;
   const stakeNum = Math.max(0, parseFloat(stake) || 0);
   const shares = price > 0 ? stakeNum / price : 0;
   const profit = shares - stakeNum;
@@ -335,7 +290,7 @@ function MarketDetail({ market: m }: { market: Market }) {
 
   const sides = (
     [
-      ["yes", "Yes", m.yes],
+      ["yes", "Yes", v.yesPct],
       ["no", "No", no],
     ] as const
   ).map(([key, label, pct]) => ({
@@ -369,17 +324,17 @@ function MarketDetail({ market: m }: { market: Market }) {
               {d.typeLabel}
             </span>
             <span className={landing.corner} style={{ padding: "6px 12px", borderRadius: 10, background: "#1E1E36", border: "1px solid #28283F", color: "#A5A3BE", fontVariantNumeric: "tabular-nums" }}>
-              {m.deadline}
+              {v.deadlinePassed ? "Ended" : "Resolves"} {v.deadlineLabel}
             </span>
           </div>
 
-          <h1 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 600, fontSize: 42, lineHeight: 1.08, letterSpacing: "-0.035em", margin: 0 }}>{m.question}</h1>
+          <h1 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 600, fontSize: 42, lineHeight: 1.08, letterSpacing: "-0.035em", margin: 0 }}>{v.question}</h1>
           <p style={{ margin: 0, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13.5, color: "#6B6889" }}>{d.ruleLine}</p>
 
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, marginTop: 6 }}>
             <div>
-              <div style={{ fontSize: 13, color: "#6B6889" }}>Yes</div>
-              <div style={{ fontFamily: "'Clash Display', sans-serif", fontSize: 40, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1, color: "#3DDC97", fontVariantNumeric: "tabular-nums" }}>{m.yes}%</div>
+              <div style={{ fontSize: 13, color: "#6B6889" }}>Yes{v.hasChain ? "" : " (no bets yet)"}</div>
+              <div style={{ fontFamily: "'Clash Display', sans-serif", fontSize: 40, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1, color: "#3DDC97", fontVariantNumeric: "tabular-nums" }}>{v.yesPct}%</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 13, color: "#6B6889" }}>No</div>
@@ -387,7 +342,7 @@ function MarketDetail({ market: m }: { market: Market }) {
             </div>
           </div>
           <div className={landing.corner} style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", background: "#0A0A16" }}>
-            <div style={{ background: "#3DDC97", transition: "width 700ms ease-out", width: `${m.yes}%` }} />
+            <div style={{ background: "#3DDC97", transition: "width 700ms ease-out", width: `${v.yesPct}%` }} />
             <div style={{ flex: 1, background: "#FF5C7A" }} />
           </div>
 
@@ -438,33 +393,42 @@ function MarketDetail({ market: m }: { market: Market }) {
 
         <div className={landing.corner} style={{ padding: 30, background: "#151527", border: "1px solid #28283F", borderRadius: 32 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
-            <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 22, letterSpacing: "-0.02em", margin: 0 }}>Positions</h2>
+            <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 22, letterSpacing: "-0.02em", margin: 0 }}>Pool</h2>
             <span style={{ fontSize: 13, color: "#6B6889" }}>{d.traderLine}</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.3fr) .7fr .8fr .9fr", gap: 12, padding: "0 4px 12px", fontSize: 12.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#6B6889", borderBottom: "1px solid #28283F" }}>
-            <span>Address</span>
-            <span>Side</span>
-            <span style={{ textAlign: "right" }}>Size</span>
-            <span style={{ textAlign: "right" }}>Block</span>
-          </div>
-          {d.positions.map((p, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "minmax(0,1.3fr) .7fr .8fr .9fr", gap: 12, padding: "14px 4px", borderBottom: "1px solid #1E1E36", fontSize: 14.5, alignItems: "center" }}>
-              <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13.5, color: "#A5A3BE" }}>{p.address}</span>
-              <span style={{ fontWeight: 500, color: p.sideColor }}>{p.side}</span>
-              <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.size}</span>
-              <span style={{ textAlign: "right", color: "#6B6889", fontVariantNumeric: "tabular-nums" }}>{p.block}</span>
+          {v.hasChain ? (
+            <div className={landing.corner} style={{ display: "grid", gap: 1, background: "#28283F", border: "1px solid #28283F", borderRadius: 20, overflow: "hidden" }}>
+              {[
+                ["Total pool", `${d.stats[0]!.value}`],
+                ["Yes stake", `${formatEther(v.yesPool)} CTC`],
+                ["No stake", `${formatEther(v.noPool)} CTC`],
+                ["Implied odds", `${v.yesPct}% YES / ${100 - v.yesPct}% NO`],
+                ...(v.isCumulative ? [["Progress to threshold", `${v.progressLabel} (${v.progressPct}%)`] as const] : []),
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", gap: 20, alignItems: "center", padding: "15px 20px", background: "#0A0A16" }}>
+                  <span style={{ fontSize: 13.5, color: "#6B6889" }}>{label}</span>
+                  <span style={{ fontFamily: SANS, fontSize: 14.5, color: "#F5F4FB", fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{value}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <p style={{ margin: 0, fontSize: 13.5, color: "#6B6889" }}>
+              Live pool figures load from the contract. Connect to Creditcoin testnet, or the Markets contract isn&apos;t configured.
+            </p>
+          )}
+          <p style={{ margin: "16px 0 0", fontSize: 12.5, color: "#6B6889" }}>
+            Per-address positions aren&apos;t indexed yet {EM_DASH} they land once the backend event indexer is wired to this contract.
+          </p>
         </div>
       </div>
 
       <aside style={{ position: "sticky", top: 104, display: "flex", flexDirection: "column", gap: 16 }}>
         <div className={landing.corner} style={{ padding: 26, background: "#151527", border: "1px solid #28283F", borderRadius: 32 }}>
-          {m.status === "open" ? (
+          {v.statusKey === "open" && !v.deadlinePassed ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
                 <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 21, letterSpacing: "-0.02em", margin: 0 }}>Take a position</h2>
-                <span style={{ fontSize: 13, color: "#6B6889" }}>{d.blocksLeft.toLocaleString("en-US")} blocks left</span>
+                <span style={{ fontSize: 13, color: "#6B6889" }}>{d.timeLeftLabel}</span>
               </div>
 
               <div style={{ display: "flex", gap: 10 }}>
@@ -560,8 +524,8 @@ function MarketDetail({ market: m }: { market: Market }) {
               <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 500, fontSize: 21, letterSpacing: "-0.02em", margin: 0 }}>{d.lockedTitle}</h2>
               <p style={{ margin: 0, fontSize: 14.5, color: "#A5A3BE" }}>{d.lockedBody}</p>
               <div className={landing.corner} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", background: "#0A0A16", border: "1px solid #28283F", borderRadius: 16, fontSize: 14 }}>
-                <span style={{ color: "#6B6889" }}>Your position</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{d.lockedPosition}</span>
+                <span style={{ color: "#6B6889" }}>Pool</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{v.hasChain ? `${v.poolLabel} CTC` : EM_DASH}</span>
               </div>
               <Link
                 href="/markets"
@@ -587,16 +551,16 @@ function MarketDetail({ market: m }: { market: Market }) {
               <span style={{ color: "#6B6889" }}>Event</span>
               <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13 }}>{d.eventName}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <span style={{ color: "#6B6889" }}>Emissions so far</span>
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>{d.emissionsLabel}</span>
-            </div>
             {d.isCumulative && (
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <span style={{ color: "#6B6889" }}>Running total</span>
                 <span style={{ fontVariantNumeric: "tabular-nums", color: "#2FE6D9" }}>{d.runningTotalLabel}</span>
               </div>
             )}
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <span style={{ color: "#6B6889" }}>Deadline</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>{v.deadlineLabel}</span>
+            </div>
           </div>
           <div className={landing.corner} style={{ marginTop: 16, display: "flex", height: 8, borderRadius: 6, overflow: "hidden", background: "#0A0A16" }}>
             <div style={{ background: "linear-gradient(90deg,#7C5CFF,#2FE6D9)", transition: "width 700ms ease-out", width: `${d.progressPct}%` }} />

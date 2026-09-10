@@ -4,8 +4,21 @@ import { startMarketsWatcher, stopMarketsWatcher } from "./indexer/marketsWatche
 import { startSourceWatcher, stopSourceWatcher } from "./indexer/sourceWatcher.js";
 import { logger } from "./logger.js";
 import { startResolver, stopResolver } from "./resolution/queue.js";
+import { firebaseConfigured, initializeFirebase } from "./services/firebase.js";
 
 async function main(): Promise<void> {
+  if (firebaseConfigured) {
+    // Don't let a bad service account take down the indexer/resolver — the
+    // Firestore-backed routes will surface the error on use instead.
+    try {
+      initializeFirebase();
+    } catch (err) {
+      logger.error({ err }, "Firebase init failed — Firestore-backed features disabled");
+    }
+  } else {
+    logger.warn("CRED not set — Firebase is disabled; Firestore-backed features will fail if used");
+  }
+
   const app = createServer();
 
   const server = app.listen(env.PORT, () => {
