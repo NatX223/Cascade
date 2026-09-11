@@ -1,7 +1,7 @@
-// Storage layer, defined as interfaces so the in-memory implementation below
-// can be swapped for a real database (Postgres/SQLite + an ORM) without
-// touching the indexer or API. That swap is a follow-up — for now everything
-// lives in process memory and is lost on restart.
+// Storage layer, defined as interfaces so callers (indexer, matcher,
+// resolver, API routes) never know which implementation is behind them. Two
+// implementations exist: in-memory (below) and Firestore (firestoreRepositories.ts).
+// The wiring at the bottom picks Firestore when CRED is set, in-memory otherwise.
 
 import type {
   ContractEventRecord,
@@ -11,6 +11,15 @@ import type {
   ResolutionJobRecord,
   SourceEventRecord,
 } from "../types.js";
+import { firebaseConfigured } from "../services/firebase.js";
+import {
+  FirestoreCursorRepository,
+  FirestoreEventRepository,
+  FirestoreMarketProgressRepository,
+  FirestoreMarketRepository,
+  FirestoreResolutionRepository,
+  FirestoreSourceEventRepository,
+} from "./firestoreRepositories.js";
 
 export interface MarketRepository {
   upsert(market: MarketRecord): Promise<void>;
@@ -205,11 +214,23 @@ export interface Repositories {
   cursor: CursorRepository;
 }
 
-export const repositories: Repositories = {
-  markets: new InMemoryMarketRepository(),
-  events: new InMemoryEventRepository(),
-  sourceEvents: new InMemorySourceEventRepository(),
-  progress: new InMemoryMarketProgressRepository(),
-  resolutions: new InMemoryResolutionRepository(),
-  cursor: new InMemoryCursorRepository(),
-};
+// Firestore is durable across restarts (see backend/README.md's restart
+// caveat) but requires CRED; without it every store stays in-memory and is
+// lost on restart, same as before.
+export const repositories: Repositories = firebaseConfigured
+  ? {
+      markets: new FirestoreMarketRepository(),
+      events: new FirestoreEventRepository(),
+      sourceEvents: new FirestoreSourceEventRepository(),
+      progress: new FirestoreMarketProgressRepository(),
+      resolutions: new FirestoreResolutionRepository(),
+      cursor: new FirestoreCursorRepository(),
+    }
+  : {
+      markets: new InMemoryMarketRepository(),
+      events: new InMemoryEventRepository(),
+      sourceEvents: new InMemorySourceEventRepository(),
+      progress: new InMemoryMarketProgressRepository(),
+      resolutions: new InMemoryResolutionRepository(),
+      cursor: new InMemoryCursorRepository(),
+    };

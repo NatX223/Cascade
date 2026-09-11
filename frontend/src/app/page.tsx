@@ -1,57 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
+import { useMarketsList } from "@/lib/useMarkets";
+import type { MarketView } from "@/lib/market-view";
 
 const EM_DASH = "—";
 
-type Market = {
-  resolves: string;
-  question: string;
-  yes: number;
-  pool: string;
-};
-
-const MARKETS: Market[] = [
-  {
-    resolves: "Resolves at block 9,481,200",
-    question: "Will 0xWhale.eth move 100+ ETH before Friday?",
-    yes: 68,
-    pool: "41.2 CTC",
-  },
-  {
-    resolves: "Resolves at block 9,481,200",
-    question: "Will the Sepolia treasury contract's pause switch flip?",
-    yes: 23,
-    pool: "12.8 CTC",
-  },
-  {
-    resolves: "Resolves at block 9,492,010",
-    question: "Will this address's next trade push ETH/USDC below $2,400?",
-    yes: 51,
-    pool: "88.4 CTC",
-  },
-  {
-    resolves: "Resolves at block 9,488,650",
-    question: "Will 0x4c1…9be approve more than 1M USDC to a new spender?",
-    yes: 34,
-    pool: "27.5 CTC",
-  },
-  {
-    resolves: "Resolves at block 9,502,000",
-    question: "Will the vault contract's supply cross 50,000 shares?",
-    yes: 44,
-    pool: "19.1 CTC",
-  },
-  {
-    resolves: "Resolves when voting closes on-chain",
-    question: "Will proposal 118 reach quorum before voting closes?",
-    yes: 72,
-    pool: "63.7 CTC",
-  },
-];
+function decorateHome(v: MarketView) {
+  return {
+    id: v.id,
+    resolves:
+      v.statusKey === "open"
+        ? v.deadlinePassed
+          ? "Awaiting resolution"
+          : `Resolves ${v.deadlineLabel}`
+        : `Deadline ${v.deadlineLabel}`,
+    question: v.question,
+    yes: v.yesPct,
+    poolLabel: v.hasChain ? `${v.poolLabel} CTC` : EM_DASH,
+  };
+}
 
 const HOW_STEPS = [
   {
@@ -120,6 +91,13 @@ export default function Home() {
     running: false,
   });
   const runTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const { markets, isLoading: marketsLoading } = useMarketsList();
+  const homeMarkets = useMemo(() => {
+    const open = markets.filter((m) => m.statusKey === "open");
+    const rest = markets.filter((m) => m.statusKey !== "open");
+    return [...open, ...rest].slice(0, 6);
+  }, [markets]);
 
   useEffect(() => {
     engine.current.stage = stage;
@@ -440,7 +418,8 @@ export default function Home() {
             maxWidth: "16ch",
           }}
         >
-          Markets that{" "}
+          Markets that
+          <br />
           <span
             style={{
               background: "linear-gradient(100deg,#7C5CFF,#2FE6D9)",
@@ -575,112 +554,161 @@ export default function Home() {
               className={`${styles.corner} ${styles.livePulse}`}
               style={{ width: 7, height: 7, borderRadius: 3, background: "#FF4FD8" }}
             />
-            Watching 1,284 addresses live
+            {marketsLoading
+              ? "Loading live markets…"
+              : `${markets.filter((m) => m.statusKey === "open").length} open ${
+                  markets.filter((m) => m.statusKey === "open").length === 1 ? "market" : "markets"
+                } live`}
           </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {MARKETS.map((m, i) => (
-            <article
-              key={i}
-              data-csc="settle"
-              className={styles.corner}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 18,
-                padding: 24,
-                background: "#151527",
-                border: "1px solid #28283F",
-                borderRadius: 28,
-              }}
-            >
+        {marketsLoading && homeMarkets.length === 0 && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+              gap: 20,
+            }}
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 13,
-                  color: "#6B6889",
-                }}
-              >
-                <span>{m.resolves}</span>
-                <span style={{ color: "#3DDC97" }}>Open</span>
-              </div>
-              <h3
-                style={{
-                  fontFamily: "'Clash Display', sans-serif",
-                  fontWeight: 500,
-                  fontSize: 22,
-                  lineHeight: 1.2,
-                  letterSpacing: "-0.02em",
-                  margin: 0,
-                  color: "#F5F4FB",
-                }}
-              >
-                {m.question}
-              </h3>
-              <div
-                className={styles.corner}
-                style={{ display: "flex", height: 8, borderRadius: 6, overflow: "hidden", background: "#0A0A16" }}
-              >
-                <div style={{ width: `${m.yes}%`, background: "#3DDC97" }} />
-                <div style={{ width: `${100 - m.yes}%`, background: "#FF5C7A" }} />
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "#A5A3BE" }}>
-                <span style={{ color: "#3DDC97", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
-                  Yes {m.yes}%
-                </span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>Pool {m.pool}</span>
-                <span style={{ color: "#FF5C7A", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
-                  No {100 - m.yes}%
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  className={`${styles.corner} ${styles.btnYes}`}
+                key={i}
+                className={`${styles.corner} ${styles.livePulse}`}
+                style={{ height: 220, background: "#151527", border: "1px solid #28283F", borderRadius: 28 }}
+              />
+            ))}
+          </div>
+        )}
+
+        {!marketsLoading && homeMarkets.length === 0 && (
+          <div
+            className={styles.corner}
+            style={{
+              padding: "48px 40px",
+              textAlign: "center",
+              background: "#151527",
+              border: "1px solid #28283F",
+              borderRadius: 28,
+              color: "#A5A3BE",
+            }}
+          >
+            No markets yet {EM_DASH} be the first to create one.
+          </div>
+        )}
+
+        {homeMarkets.length > 0 && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+              gap: 20,
+            }}
+          >
+            {homeMarkets.map((raw) => {
+              const m = decorateHome(raw);
+              return (
+                <article
+                  key={m.id}
+                  data-csc="settle"
+                  className={styles.corner}
                   style={{
-                    flex: 1,
-                    fontFamily: "'General Sans', sans-serif",
-                    fontSize: 15,
-                    fontWeight: 500,
-                    color: "#3DDC97",
-                    background: "rgba(61,220,151,.1)",
-                    border: "1px solid rgba(61,220,151,.28)",
-                    padding: 11,
-                    borderRadius: 14,
-                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 18,
+                    padding: 24,
+                    background: "#151527",
+                    border: "1px solid #28283F",
+                    borderRadius: 28,
                   }}
                 >
-                  Yes
-                </button>
-                <button
-                  className={`${styles.corner} ${styles.btnNo}`}
-                  style={{
-                    flex: 1,
-                    fontFamily: "'General Sans', sans-serif",
-                    fontSize: 15,
-                    fontWeight: 500,
-                    color: "#FF5C7A",
-                    background: "rgba(255,92,122,.1)",
-                    border: "1px solid rgba(255,92,122,.28)",
-                    padding: 11,
-                    borderRadius: 14,
-                    cursor: "pointer",
-                  }}
-                >
-                  No
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: 13,
+                      color: "#6B6889",
+                    }}
+                  >
+                    <span>{m.resolves}</span>
+                    <span style={{ color: raw.statusColor }}>{raw.statusLabel}</span>
+                  </div>
+                  <h3
+                    style={{
+                      fontFamily: "'Clash Display', sans-serif",
+                      fontWeight: 500,
+                      fontSize: 22,
+                      lineHeight: 1.2,
+                      letterSpacing: "-0.02em",
+                      margin: 0,
+                      color: "#F5F4FB",
+                    }}
+                  >
+                    <Link href={`/markets/${m.id}`} style={{ color: "#F5F4FB" }}>
+                      {m.question}
+                    </Link>
+                  </h3>
+                  <div
+                    className={styles.corner}
+                    style={{ display: "flex", height: 8, borderRadius: 6, overflow: "hidden", background: "#0A0A16" }}
+                  >
+                    <div style={{ width: `${m.yes}%`, background: "#3DDC97" }} />
+                    <div style={{ width: `${100 - m.yes}%`, background: "#FF5C7A" }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "#A5A3BE" }}>
+                    <span style={{ color: "#3DDC97", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                      Yes {m.yes}%
+                    </span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>Pool {m.poolLabel}</span>
+                    <span style={{ color: "#FF5C7A", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                      No {100 - m.yes}%
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <Link
+                      href={`/markets/${m.id}`}
+                      className={`${styles.corner} ${styles.btnYes}`}
+                      style={{
+                        flex: 1,
+                        textAlign: "center",
+                        fontFamily: "'General Sans', sans-serif",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        color: "#3DDC97",
+                        background: "rgba(61,220,151,.1)",
+                        border: "1px solid rgba(61,220,151,.28)",
+                        padding: 11,
+                        borderRadius: 14,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Bet Yes
+                    </Link>
+                    <Link
+                      href={`/markets/${m.id}`}
+                      className={`${styles.corner} ${styles.btnNo}`}
+                      style={{
+                        flex: 1,
+                        textAlign: "center",
+                        fontFamily: "'General Sans', sans-serif",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        color: "#FF5C7A",
+                        background: "rgba(255,92,122,.1)",
+                        border: "1px solid rgba(255,92,122,.28)",
+                        padding: 11,
+                        borderRadius: 14,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Bet No
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section

@@ -108,8 +108,31 @@ no markets, so the source watcher polls nothing (its cursor still advances).
 
 `src/services/firebase.ts` bootstraps `firebase-admin` from `CRED` — the base64
 of a service account JSON. Init is lazy + idempotent; without `CRED` the backend
-still runs and only Firestore-backed routes (`POST /markets`) return `503`.
-`src/services/firebaseService.ts` is a thin Firestore helper used by those routes.
+still runs, `POST /markets` returns `503`, and `db/repositories.ts` falls back
+to its in-memory implementations. `src/services/firebaseService.ts` is a thin
+Firestore helper used by the `/markets` routes for frontend-authored market
+metadata (question text, presets).
+
+## Persistence
+
+With `CRED` set, `db/repositories.ts` wires up the Firestore-backed
+implementations in `db/firestoreRepositories.ts` instead of the in-memory
+ones — same interfaces, so nothing above this layer changes. Six collections,
+none of them overlapping with the `markets` collection the frontend writes to
+via `POST /markets` (that's chain-independent metadata; these are the
+indexer's own derived state):
+
+| Collection | Repository | Document ID | Holds |
+| --- | --- | --- | --- |
+| `indexerMarkets` | `markets` | `marketId` | chain-derived registry (status, pools, deadline, watch config) |
+| `resolutionJobs` | `resolutions` | `${marketId}:${transactionHash}` | the prove-and-resolve job queue — the one most worth persisting, since a job can take up to `PROOF_ATTEST_TIMEOUT_MS` (~20 min) |
+| `marketProgress` | `progress` | `marketId` | running accumulation toward a Cumulative market's threshold |
+| `sourceEvents` | `sourceEvents` | `${transactionHash}:${logIndex}` | matched Sepolia logs |
+| `contractEvents` | `events` | `${transactionHash}:${logIndex}` | raw Markets.sol event log, for replay/debugging |
+| `indexerCursors` | `cursor` | `"markets"` \| `"source"` | last block each watcher processed — lets a restart resume instead of rescanning from `latest` |
+
+Collections are created on first write — nothing to provision by hand. Without
+`CRED`, all six stay in-memory and reset on restart, as before.
 
 ## Signature check
 
@@ -119,9 +142,6 @@ The four source-event selectors in `chain/sourceEvents.ts` were verified with
 
 ## Follow-ups (not done)
 
-- Real persistence (Postgres / SQLite) behind the existing repository interfaces
-  — the resolution job queue is in-memory too, so a restart mid-proof restarts
-  that proof from scratch (safe, just slow)
 - Group source polling by `(sourceContract, eventSignature)` instead of the
   current union-of-addresses single filter, per the watcher grouping brief
 - Pool / stake projection from `BetPlaced` / `Claimed` / `Refunded`

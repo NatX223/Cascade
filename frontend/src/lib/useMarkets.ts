@@ -31,11 +31,18 @@ export function useMarketsList() {
     query: { enabled: contractReady && rows.length > 0, refetchInterval: 20_000 },
   });
 
-  const markets: MarketView[] = rows.map((m, i) => {
+  // A malformed Firestore doc (partial write, stray manual test record) should
+  // drop out of the list, not take the whole page down with it.
+  const markets: MarketView[] = rows.flatMap((m, i) => {
     const entry = chain.data?.[i];
     const onChain =
       entry && entry.status === "success" ? (entry.result as unknown as OnChainMarket) : null;
-    return toMarketView(m, onChain);
+    try {
+      return [toMarketView(m, onChain)];
+    } catch (err) {
+      console.error("skipping malformed market record", m.marketId, err);
+      return [];
+    }
   });
 
   return {
@@ -64,7 +71,14 @@ export function useMarket(marketId: string) {
   });
 
   const onChain = (chain.data as unknown as OnChainMarket | undefined) ?? null;
-  const view = stored.data ? toMarketView(stored.data, onChain) : null;
+  let view: MarketView | null = null;
+  if (stored.data) {
+    try {
+      view = toMarketView(stored.data, onChain);
+    } catch (err) {
+      console.error("malformed market record", marketId, err);
+    }
+  }
 
   return {
     view,
