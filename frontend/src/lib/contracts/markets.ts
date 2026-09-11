@@ -2,11 +2,6 @@
 // contracts/contracts/Markets.sol. See market-creation-brief.md for the
 // user-facing preset mapping this file's constants/enums back.
 //
-// Two values below are placeholders that MUST be confirmed before this ever
-// goes to a real deployment — see the loud comments next to them:
-//   - MARKETS_CONTRACT_ADDRESS (no deployment exists yet)
-//   - SEPOLIA_CHAIN_KEY (Attestcoin's chainKey id for Sepolia isn't recorded
-//     anywhere in this repo or the @gluwa/asc-contracts package)
 import type { Address } from "viem";
 
 /// Deployed address of Markets.sol on Creditcoin testnet (chain 102031, see
@@ -21,13 +16,12 @@ export const MARKETS_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_MARKETS_CONTRAC
 export const DEFAULT_MARKET_ID = BigInt(0);
 
 /// Attestcoin's chainKey identifier for Ethereum Sepolia, passed as
-/// `createMarket`'s `chainKey` param. UNCONFIRMED — defaulted to Sepolia's
-/// standard EVM chain id (11155111) as the most plausible placeholder, but
-/// this is exactly the kind of value that fails silently: a wrong chainKey
-/// doesn't reject at creation time, it just makes the market's proofs never
-/// verify. Confirm the real value against Attestcoin's chain registry (or
-/// NEXT_PUBLIC_SEPOLIA_CHAIN_KEY) before relying on this in production.
-export const SEPOLIA_CHAIN_KEY = BigInt(process.env.NEXT_PUBLIC_SEPOLIA_CHAIN_KEY || "11155111");
+/// `createMarket`'s `chainKey` param. Confirmed as 1 via the Creditcoin testnet
+/// ChainInfo precompile (0x0000000000000000000000000000000000000fd3) — it lists
+/// chainKey 1 → chainId 11155111 "Sepolia ethereum" (mainnet is chainKey 3).
+/// A wrong chainKey fails silently: it doesn't reject at creation, it just makes
+/// the market's proofs never verify. Override with NEXT_PUBLIC_SEPOLIA_CHAIN_KEY.
+export const SEPOLIA_CHAIN_KEY = BigInt(process.env.NEXT_PUBLIC_SEPOLIA_CHAIN_KEY || "1");
 
 // ─────────────────────────────────────────────────────────────────────────
 // Known constants — copied verbatim from Markets.sol. Never let the user

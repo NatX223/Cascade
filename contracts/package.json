@@ -13,7 +13,11 @@
     "deploy:markets:local": "hardhat ignition deploy ignition/modules/Markets.ts --network localhost",
     "deploy:markets:creditcoin-testnet": "hardhat ignition deploy ignition/modules/Markets.ts --network creditcoinTestnet",
     "market:create": "hardhat run scripts/interactions/createMarket.ts --network creditcoinTestnet",
-    "market:bet": "hardhat run scripts/interactions/bet.ts --network creditcoinTestnet"
+    "market:bet": "hardhat run scripts/interactions/bet.ts --network creditcoinTestnet",
+    "market:claim": "hardhat run scripts/interactions/claim.ts --network creditcoinTestnet",
+    "token:deploy:sepolia": "hardhat run scripts/deployTestToken.ts --network sepolia",
+    "token:mint:sepolia": "hardhat run scripts/mintTestToken.ts --network sepolia",
+    "token:transfer:sepolia": "hardhat run scripts/transferTestToken.ts --network sepolia"
   },
   "keywords": [],
   "author": "",

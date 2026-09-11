@@ -57,11 +57,20 @@ function getOrGenerateProof(chainKey: number, txHash: string): Promise<proofProv
       env.PROOF_BUILDER_URL,
       creditcoinProvider,
       sourceProvider,
-    ).then((result) => {
-      // Keep successes cached (cheap reuse); drop failures so a retry re-requests.
-      if (!result.success) proofInFlight.delete(key);
-      return result;
-    });
+    ).then(
+      (result) => {
+        // Keep successes cached (cheap reuse); drop failures so a retry re-requests.
+        if (!result.success) proofInFlight.delete(key);
+        return result;
+      },
+      (err) => {
+        // A rejection (not a {success:false}) must clear the cache too, otherwise
+        // every later tick awaits the same already-rejected promise and fails
+        // instantly without ever retrying the proof.
+        proofInFlight.delete(key);
+        throw err;
+      },
+    );
     proofInFlight.set(key, pending);
   }
   return pending;
@@ -69,8 +78,9 @@ function getOrGenerateProof(chainKey: number, txHash: string): Promise<proofProv
 
 /**
  * Registers a resolution job for one (market, source tx) pair. Idempotent — a
- * pair already tracked in any non-`failed` state is left alone. Safe to call
- * from the hot path: it only touches the in-memory store.
+ * pair already tracked in any non-`failed` state is left alone. Re-enqueuing a
+ * `failed` job (matcher re-fires, or a restart's rebuild) gives it a clean
+ * attempt count. Safe to call from the hot path: it only touches the in-memory store.
  */
 export async function enqueueResolution(
   marketId: string,
@@ -86,7 +96,7 @@ export async function enqueueResolution(
     transactionHash,
     chainKey,
     status: "queued",
-    attempts: existing?.attempts ?? 0,
+    attempts: 0,
     lastError: null,
     resolveTxHash: null,
     outcome: null,
@@ -240,7 +250,13 @@ async function submitResolveAndAwait(
 async function rebuildFromState(): Promise<void> {
   for (const job of await repositories.resolutions.listPending()) {
     if (job.status !== "queued") {
-      await repositories.resolutions.patch(job.marketId, job.transactionHash, { status: "queued" });
+      // Reset the attempt counter too — a restart is a fresh chance, and a job
+      // parked in `failed` would otherwise give up again on its first hiccup.
+      await repositories.resolutions.patch(job.marketId, job.transactionHash, {
+        status: "queued",
+        attempts: 0,
+        lastError: null,
+      });
     }
   }
 

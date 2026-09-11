@@ -46,9 +46,11 @@ const schema = z.object({
   SOURCE_CHAIN_KEY: z.coerce.number().int().nonnegative().default(0),
   // How the queue worker paces itself and how long it waits on attestation.
   RESOLUTION_QUEUE_INTERVAL_MS: z.coerce.number().int().positive().default(15_000),
-  RESOLUTION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  RESOLUTION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(15),
   PROOF_ATTEST_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15_000),
-  PROOF_ATTEST_TIMEOUT_MS: z.coerce.number().int().positive().default(1_200_000),
+  PROOF_ATTEST_TIMEOUT_MS: z.coerce.number().int().positive().default(1_800_000),
+  // Per-request timeout for the ethers RPC providers used in the resolution path.
+  RPC_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
 
   // ── Firebase ───────────────────────────────────────────────────────────────
   // Base64-encoded Firebase service account JSON. Unset ⇒ Firestore-backed

@@ -18,6 +18,13 @@ import {
  *
  *   CHAIN_KEY, SOURCE_CONTRACT, EVENT_SIG, WATCHED_ADDRESS,
  *   THRESHOLD, DEADLINE_SECONDS (seconds from now, default 1 day)
+ *   MARKET_TYPE      SingleEvent | Cumulative           (default SingleEvent)
+ *   EVENT_TEMPLATE   Occurrence | SingleWordValue | AddressPrefixedValue | EventCount
+ *   COMPARISON       GTE | LTE | EQ                      (default GTE)
+ *
+ * Example — "does <addr> send >= 500 CTT" on a Sepolia TestToken:
+ *   SOURCE_CONTRACT=<token> WATCHED_ADDRESS=<sender> EVENT_TEMPLATE=SingleWordValue \
+ *   THRESHOLD=500000000000000000000 CHAIN_KEY=<sepolia attestcoin key> npm run market:create
  */
 async function main() {
   const signer = await logContext("createMarket");
@@ -32,26 +39,36 @@ async function main() {
   const deadlineSeconds = Number(process.env.DEADLINE_SECONDS ?? 24 * 60 * 60);
   const deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineSeconds);
 
+  const marketTypeName = (process.env.MARKET_TYPE ?? "SingleEvent") as keyof typeof MarketType;
+  const eventTemplateName = (process.env.EVENT_TEMPLATE ?? "Occurrence") as keyof typeof EventTemplate;
+  const comparisonName = (process.env.COMPARISON ?? "GTE") as keyof typeof ComparisonOperator;
+  const marketType = MarketType[marketTypeName];
+  const eventTemplate = EventTemplate[eventTemplateName];
+  const comparisonOperator = ComparisonOperator[comparisonName];
+  if (marketType === undefined) throw new Error(`bad MARKET_TYPE: ${process.env.MARKET_TYPE}`);
+  if (eventTemplate === undefined) throw new Error(`bad EVENT_TEMPLATE: ${process.env.EVENT_TEMPLATE}`);
+  if (comparisonOperator === undefined) throw new Error(`bad COMPARISON: ${process.env.COMPARISON}`);
+
   const args = [
-    MarketType.SingleEvent,
-    EventTemplate.Occurrence,
+    marketType,
+    eventTemplate,
     chainKey,
     sourceContract,
     eventSignature,
     watchedAddress,
-    ComparisonOperator.GTE,
+    comparisonOperator,
     threshold,
     deadline,
   ] as const;
 
   console.log("createMarket args:", {
-    marketType: "SingleEvent",
-    eventTemplate: "Occurrence",
+    marketType: marketTypeName,
+    eventTemplate: eventTemplateName,
     chainKey: chainKey.toString(),
     sourceContract,
     eventSignature,
     watchedAddress,
-    comparisonOperator: "GTE",
+    comparisonOperator: comparisonName,
     threshold: threshold.toString(),
     deadline: deadline.toString(),
   });
