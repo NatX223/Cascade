@@ -10,7 +10,7 @@ import { getMarkets, logContext } from "./common";
  *   npx hardhat run scripts/interactions/backfillDemoMarkets.ts --network creditcoinTestnet
  */
 
-const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BACKEND_URL = (process.env.BACKEND_URL ?? "https://cascade-1-sd9s.onrender.com").replace(/\/$/, "");
 const AAVE_V3_POOL = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951";
 const AAVE_SUPPLY_SIG = "0x2b627736bca15cd5381dcf80b0bf11fd197d01a037c52b927a881a10fb73ba61";
 const AAVE_BORROW_SIG = "0xb3d084820fb1a9decffb176436bd02558d15fac9b0ddfed8c465bc7359d7dce0";

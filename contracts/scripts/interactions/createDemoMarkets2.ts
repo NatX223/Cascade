@@ -9,7 +9,7 @@ import { getMarkets, logContext, MarketType, EventTemplate, ComparisonOperator }
  *   npx hardhat run scripts/interactions/createDemoMarkets2.ts --network creditcoinTestnet
  */
 
-const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BACKEND_URL = (process.env.BACKEND_URL ?? "https://cascade-1-sd9s.onrender.com").replace(/\/$/, "");
 const UNISWAP_V3_SWAP_SIG = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 

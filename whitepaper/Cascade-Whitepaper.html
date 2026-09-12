@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cascade Whitepaper</title>
+<style>
+  @page {
+    size: A4;
+    margin: 26mm 20mm 22mm 20mm;
+  }
+  :root {
+    --ink: #1a1d23;
+    --sub: #4b5563;
+    --rule: #d8dbe2;
+    --accent: #1f6feb;
+    --accent-dark: #0b3d91;
+    --code-bg: #f4f6f9;
+    --tag-bg: #eef4ff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    color: var(--ink);
+    font-family: "Georgia", "Cambria", "Times New Roman", serif;
+    font-size: 10.6pt;
+    line-height: 1.55;
+    background: #ffffff;
+  }
+  h1, h2, h3, h4 {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  .cover {
+    min-height: 245mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+  .cover .tag {
+    display: inline-block;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 9pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    background: var(--tag-bg);
+    border: 1px solid #c9dcfb;
+    border-radius: 999px;
+    padding: 4px 14px;
+    margin-bottom: 22px;
+    width: fit-content;
+  }
+  .cover h1 {
+    font-size: 40pt;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.01em;
+  }
+  .cover .subtitle {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 14pt;
+    color: var(--sub);
+    font-weight: 400;
+    max-width: 85%;
+    margin-bottom: 40px;
+  }
+  .cover .meta-table {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 9.5pt;
+    color: var(--sub);
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+    width: 70%;
+  }
+  .cover .meta-table div { margin-bottom: 5px; }
+  .cover .meta-table b { color: var(--ink); font-weight: 600; }
+
+  h1.section-title {
+    font-size: 18pt;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 6px;
+    margin: 0 0 14px 0;
+    page-break-after: avoid;
+  }
+  h2 {
+    font-size: 13pt;
+    margin: 22px 0 8px 0;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    margin: 16px 0 6px 0;
+    color: var(--accent-dark);
+    page-break-after: avoid;
+  }
+  p { margin: 0 0 10px 0; text-align: justify; }
+  section { margin-bottom: 8px; }
+  .abstract {
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    margin-bottom: 4px;
+    font-size: 10.2pt;
+  }
+  .abstract h3 {
+    margin-top: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 9pt;
+    color: var(--sub);
+  }
+  ul, ol { margin: 6px 0 12px 0; padding-left: 22px; }
+  li { margin-bottom: 5px; text-align: justify; }
+  code {
+    font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
+    font-size: 9.2pt;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #0b3d91;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0 16px 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 9.2pt;
+  }
+  th, td {
+    border: 1px solid var(--rule);
+    padding: 6px 9px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+  }
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 4px 0 4px 34px;
+    margin-bottom: 10px;
+  }
+  .steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 10pt;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flow {
+    font-family: "Consolas", monospace;
+    font-size: 8.6pt;
+    background: var(--code-bg);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  .callout {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent-dark);
+    background: #fbfcfe;
+    padding: 10px 14px;
+    margin: 10px 0 16px 0;
+    font-size: 9.8pt;
+  }
+  .callout b { color: var(--accent-dark); }
+  .tx-link {
+    font-family: "Consolas", monospace;
+    font-size: 8.6pt;
+    word-break: break-all;
+    color: var(--accent-dark);
+  }
+  .page-break { page-break-before: always; }
+  footer.pagefoot {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 8pt;
+    color: #98a1af;
+    text-align: center;
+    margin-top: 26px;
+    border-top: 1px solid var(--rule);
+    padding-top: 8px;
+  }
+  .two-col {
+    display: flex;
+    gap: 18px;
+  }
+  .two-col > div { flex: 1; }
+  .badge {
+    display: inline-block;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--tag-bg);
+    color: var(--accent-dark);
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <span class="tag">Whitepaper &middot; v1.0</span>
+  <h1>Cascade</h1>
+  <div class="subtitle">Permissionless prediction markets on real-world DeFi events, resolved with no admin, no oracle, and no dispute window — settled instead by cryptographic proof, via the Attestcoin Protocol.</div>
+  <div class="meta-table">
+    <div><b>Networks:</b> Creditcoin Testnet (markets &amp; settlement) &middot; Ethereum Sepolia (source conditions)</div>
+    <div><b>Core primitive:</b> Attestcoin cross-chain attestation &amp; Native Query Verifier precompile</div>
+    <div><b>Status:</b> Deployed and functionally verified end-to-end on public testnets</div>
+    <div><b>Date:</b> September 2026</div>
+  </div>
+</div>
+
+<!-- ABSTRACT -->
+<h1 class="section-title">Abstract</h1>
+<div class="abstract">
+<h3>Summary</h3>
+<p>Cascade is a prediction market protocol for conditions that occur on a different blockchain than the one the market lives on — a whale transfer, a lending pool crossing a borrow-volume threshold, a DEX pool recording another swap. Rather than routing resolution through a centralized oracle, a multisig committee, or a bonded dispute window, Cascade settles markets the moment the underlying event is <i>cryptographically proven</i> to have occurred, using the Attestcoin Protocol's cross-chain attestation and Creditcoin's Native Query Verifier precompile. The result is a market whose only trust assumption is the same one users already extend to the blockchains involved: that a sufficiently attested block is final. No party — including Cascade's own operators — can resolve a market against its true on-chain outcome.</p>
+</div>
+
+<!-- 1. PROBLEM -->
+<h1 class="section-title">1. Problem Statement</h1>
+<p>Prediction markets that key off real-world or cross-chain events almost universally depend on a trusted party to assert "yes, that happened." In practice this trusted party takes one of three forms: a centralized oracle feed, a multisig of reputed signers, or an optimistic dispute window secured by a bonded challenger. Each of these introduces the same three costs:</p>
+<ul>
+  <li><b>Delay</b> — dispute windows and committee sign-off cycles routinely add hours to days before a market can pay out, even when the underlying event was final within seconds of its own chain's finality.</li>
+  <li><b>Cost</b> — bonded disputes and oracle infrastructure impose ongoing operational and capital overhead that gets passed to market participants as fees or spread.</li>
+  <li><b>A manipulation surface</b> — whoever holds resolution authority can be bribed, censored, coerced, or can simply make an honest mistake. The market's integrity is only as strong as that party's incentives and diligence.</li>
+</ul>
+<p>This is particularly wasteful for markets on granular, high-frequency on-chain activity — a specific address's transfer, a lending pool's cumulative borrow volume, a DEX's swap count — because the ground truth for these conditions is <i>already</i> sitting in a block on another chain, fully public and independently verifiable. Routing that truth through a human curator or a semi-trusted price/event feed adds a layer of trust the data itself does not require.</p>
+
+<!-- 2. SOLUTION -->
+<h1 class="section-title">2. Solution Overview</h1>
+<p>Cascade removes the trusted resolver from the critical path entirely. A market's condition is defined declaratively — as a specific event signature emitted by a specific contract on a specific source chain, optionally scoped to one watched address, compared against a numeric threshold. Resolution then proceeds as a three-step cryptographic pipeline rather than a human judgment call:</p>
+<ol class="steps">
+  <li><b>Detect.</b> An off-chain watcher observes the source chain (Ethereum Sepolia) for a transaction whose logs match an open market's condition.</li>
+  <li><b>Prove.</b> Once Creditcoin has attested the block containing that transaction, the Attestcoin Proof Builder service produces a Merkle <i>inclusion proof</i> (the transaction is really in that block) and a <i>continuity proof</i> (that block is really part of the attested chain history).</li>
+  <li><b>Verify and settle.</b> That proof is submitted to <code>Markets.sol</code> on Creditcoin, which calls Creditcoin's own Native Query Verifier precompile to independently re-check the proof on-chain — trusting nothing the off-chain resolver claims — before releasing any payout.</li>
+</ol>
+<p>If no matching event ever occurs, the market simply expires to NO at its deadline. This fallback path is also permissionless and requires no admin action — there is nothing to disprove, so no proof is required to close it out. The only privileged action anywhere in the protocol is <code>cancelMarket</code>, an owner-only escape hatch reserved for a market whose <i>definition</i> was malformed at creation — never a lever for altering a market's true outcome.</p>
+
+<!-- 3. WHY CREDITCOIN + ATTESTCOIN -->
+<h1 class="section-title page-break">3. Why Creditcoin and Attestcoin Are Pivotal</h1>
+<p>Cascade is built specifically around two primitives that, together, make trustless cross-chain resolution practical rather than theoretical.</p>
+
+<h2>3.1 Creditcoin's Native Query Verifier Precompile</h2>
+<p><code>Markets.sol</code> lives on Creditcoin testnet, and CTC is staked, won, and paid out there — chosen specifically because Creditcoin exposes the <b>Native Query Verifier precompile</b> (<code>INativeQueryVerifier</code>) at the protocol level. This precompile lets a smart contract verify, in a single on-chain call, both a foreign-chain transaction's Merkle inclusion proof <i>and</i> the continuity of the chain history surrounding it — without the contract trusting anything beyond Creditcoin's own attested state. Implementing equivalent verification in ordinary Solidity, without a native precompile, would be prohibitively expensive in gas and complexity.</p>
+
+<h2>3.2 The Attestcoin Protocol</h2>
+<p>Attestcoin (the <code>@gluwa/asc-contracts</code> / <code>@gluwa/usc-sdk</code> stack) is the protocol that produces the proofs the precompile verifies. Creditcoin periodically attests to the state of external chains — Sepolia, and eventually Ethereum mainnet and others — under a <code>chainKey</code> identifier. Once a source-chain block has been attested, Attestcoin's Proof Builder service can generate a proof that a specific transaction is included in it. <code>MarketBase.resolve()</code> hands that proof directly to the verifier precompile via <code>verifyAndEmit(chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof)</code>, and only continues into market-resolution logic if the call returns <code>true</code>.</p>
+
+<h2>3.3 The Combined Guarantee</h2>
+<p>Neither primitive is sufficient alone. Without the Native Query Verifier precompile, verifying a foreign-chain Merkle proof cheaply on-chain is not practical for a general-purpose smart contract. Without Attestcoin's attestation and proof-building service, there is no trustworthy source for the proof in the first place. Together, they are what makes "permissionless, trustless resolution of a cross-chain condition" achievable at all. Cascade does not reimplement either primitive — it is a market contract and an off-chain indexer built <i>around</i> them.</p>
+
+<!-- 4. ARCHITECTURE -->
+<h1 class="section-title page-break">4. System Architecture</h1>
+<p>Cascade is composed of four cooperating layers: a Next.js frontend for market creation and betting, a Solidity market contract on Creditcoin, a TypeScript backend that bridges the two chains, and the Attestcoin Protocol itself, which supplies the cryptographic proofs the contract relies on.</p>
+<div class="flow">Frontend (Next.js)  --createMarket / bet / claim-->  Markets.sol (Creditcoin testnet)
+                                                            |
+                                          MarketCreated /   |  resolve(marketId, proof)
+                                          MarketResolved    v
+Cascade Backend  <----------------------------------  emits events
+  |- marketsWatcher   : indexes Markets.sol, keeps the open-market registry in sync
+  |- sourceWatcher     : polls only the Sepolia contracts referenced by open markets
+  |- matcher            : decodes matching logs, compares against threshold/comparator
+  |- resolver queue    : waits for attestation, fetches proof, submits resolve()
+        |
+        |--> Attestcoin ChainInfo precompile     (attested height per chainKey)
+        |--> Attestcoin Proof Builder service    (inclusion + continuity proof)
+        |
+        v
+  Markets.sol --verifyAndEmit(proof)--> Native Query Verifier precompile --> payout</div>
+
+<h2>4.1 Resolution Sequence</h2>
+<p>The path a matched source-chain event takes from Sepolia back to a paid-out market on Creditcoin:</p>
+<div class="flow"> 1. User      createMarket(sourceContract, eventSig, watchedAddress, threshold, deadline) -> Markets.sol
+ 2. Markets.sol  emits MarketCreated                             -> marketsWatcher updates registry
+ 3. User      bet(marketId, outcome) [payable]                    -> Markets.sol
+ 4. sourceWatcher polls only the Sepolia contracts referenced by open markets
+ 5. Sepolia   matching log (e.g. Transfer, value >= threshold)     -> matcher
+ 6. matcher   conditionMet                                          -> resolver queue
+ 7. resolver  waitUntilHeightAttested(chainKey, blockHeight)       -> Attestcoin ChainInfo precompile
+ 8. resolver  getProof(txHash)                                     -> Attestcoin Proof Builder
+ 9. resolver  resolve(marketId, chainKey, blockHeight, tx, merkleProof, continuityProof) -> Markets.sol
+10. Markets.sol  verifyAndEmit(...)                                -> Native Query Verifier precompile
+11. Markets.sol  emits MarketResolved(marketId, outcome)   [only once verified == true]
+12. User      claim(marketId)                                       -> Markets.sol -> payout</div>
+
+<!-- 5. PROTOCOL MECHANICS -->
+<h1 class="section-title page-break">5. Protocol Mechanics</h1>
+
+<h2>5.1 Market Creation</h2>
+<p>Anyone may call <code>createMarket</code> on Creditcoin, supplying a source contract address, an event signature, an optional watched address, a comparison operator with numeric threshold, and a deadline. The Cascade frontend exposes this as a handful of fixed presets — whale transfer, Aave supply/borrow volume, Aave pool activity, Uniswap swap count — so end users never need to hand-construct raw event signatures. Market creation is intentionally permissionless: safety comes from the condition being independently re-verified at resolution time, not from gatekeeping who may propose a question.</p>
+
+<h2>5.2 Betting</h2>
+<p>Any participant may stake native CTC on the YES or NO outcome via <code>bet(marketId, outcome)</code> at any point before the deadline. Stakes accumulate into per-outcome pools; a bettor's eventual share of the winning pool is proportional to their stake within it.</p>
+
+<h2>5.3 Watching and Matching</h2>
+<p>The backend's <code>sourceWatcher</code> polls only the Sepolia contracts referenced by currently open markets, keeping off-chain load proportional to active market volume rather than to all of Sepolia. The <code>marketsWatcher</code> separately indexes <code>Markets.sol</code> events to keep an on-chain market registry current. When a source-chain log matches an open market's <code>(sourceContract, eventSignature, watchedAddress)</code> tuple, the <code>matcher</code> decodes its value according to the market's <code>EventTemplate</code> and compares it against the configured threshold — accumulating the value first for markets of type <code>Cumulative</code>, such as running borrow volume.</p>
+
+<h2>5.4 Resolution</h2>
+<p>A matched condition enqueues a resolution job. The resolver worker waits until Creditcoin has attested the relevant Sepolia block, fetches an Attestcoin inclusion-and-continuity proof for the exact matching transaction, and submits <code>Markets.resolve(...)</code>. Critically, the contract does not take the resolver's word for it: it re-verifies the proof itself, on-chain, via the Native Query Verifier precompile, before transitioning the market to <code>Resolved</code> and decoding the proved transaction's receipt to confirm both that the source transaction succeeded and that its logs genuinely satisfy the market's filter and threshold.</p>
+
+<h2>5.5 Expiry (No-Match Fallback)</h2>
+<p>If a market's deadline passes with no verified match, any party may call <code>expireMarket(marketId)</code>, which resolves the market to NO without requiring a proof. Because a NO outcome represents the absence of a matching event, there is nothing that could be proven — the deadline itself is the only evidence needed, and it is already visible on-chain.</p>
+
+<h2>5.6 Claiming</h2>
+<p>Once a market is resolved, winners call <code>claim(marketId)</code> to receive <code>stake + stake &times; losingPool / winningPool</code> — their original stake plus a pro-rata share of the losing pool. In the edge case where nobody staked on the winning side, callers instead reclaim their own losing-side stake, ensuring funds are never permanently stranded in the contract.</p>
+
+<h2>5.7 Key Function Reference</h2>
+<table>
+<tr><th>Function</th><th>Contract</th><th>Role</th></tr>
+<tr><td><code>createMarket</code></td><td><code>Markets.sol</code></td><td>Permissionlessly defines a new cross-chain condition, its comparator/threshold, and its deadline; emits <code>MarketCreated</code>.</td></tr>
+<tr><td><code>bet</code></td><td><code>Markets.sol</code></td><td>Stakes native CTC on YES or NO for an open market before its deadline.</td></tr>
+<tr><td><code>resolve</code></td><td><code>MarketBase.sol</code></td><td>The proof-verification gate — calls the Native Query Verifier precompile and only proceeds if the cross-chain proof checks out; rejects any query already processed for that market.</td></tr>
+<tr><td><code>_resolveMarket</code></td><td><code>Markets.sol</code></td><td>Decodes the proved transaction's receipt and logs, confirms the source transaction succeeded, checks the actor filter, and applies the comparator/threshold to finalize (or, for cumulative markets, keep accumulating).</td></tr>
+<tr><td><code>expireMarket</code></td><td><code>Markets.sol</code></td><td>Permissionless fallback that resolves an unmatched market to NO once its deadline has passed.</td></tr>
+<tr><td><code>claim</code></td><td><code>Markets.sol</code></td><td>Pays out a winner's stake plus pro-rata share of the losing pool, with a no-winner refund fallback.</td></tr>
+<tr><td><code>cancelMarket</code></td><td><code>Markets.sol</code></td><td>The protocol's only privileged action — owner-only, reserved for malformed market <i>definitions</i>, never for altering a true outcome.</td></tr>
+</table>
+
+<h2>5.8 Attestcoin Integration Detail</h2>
+<p>Off-chain, the resolver's <code>generateProofFor</code> routine (<code>backend/src/resolution/proof.ts</code>) fetches the source transaction's receipt, instantiates an Attestcoin <code>ProofBuilder</code> for the relevant <code>chainKey</code>, calls <code>waitUntilHeightAttested</code> to poll until Creditcoin has attested the containing block (attestation typically trails the source chain by roughly 8&ndash;20 minutes), and then calls <code>getProof(transactionHash)</code> to retrieve the inclusion and continuity proof. The resolution queue then submits this proof via <code>Markets.resolve(...)</code>, computing an appropriate gas limit from the continuity proof's root count, and parses the resulting <code>MarketResolved</code> event to confirm the on-chain outcome. Proofs are cached per <code>(chainKey, txHash)</code>, so a single source transaction that happens to satisfy several open markets costs only one Proof Builder round trip.</p>
+
+<!-- 6. SECURITY -->
+<h1 class="section-title page-break">6. Security Model</h1>
+<p>Cascade's security rests on minimizing the number of parties whose honesty a bettor must assume, and pushing every remaining assumption down to primitives that are already load-bearing for the chains involved.</p>
+<div class="two-col">
+<div>
+<h3>What a bettor must trust</h3>
+<ul>
+<li>Creditcoin's own consensus and the correctness of its Native Query Verifier precompile.</li>
+<li>Attestcoin's attestation of Sepolia block headers into Creditcoin's <code>ChainInfo</code> state.</li>
+<li>Standard smart-contract assumptions: <code>Markets.sol</code>'s own logic is correctly implemented and immutable post-deployment.</li>
+</ul>
+</div>
+<div>
+<h3>What a bettor does <i>not</i> need to trust</h3>
+<ul>
+<li>Cascade's own backend or resolver operator — it can only submit proofs, never fabricate outcomes; the contract independently re-verifies every proof.</li>
+<li>Any oracle committee, multisig, or bonded challenger — none exists in the protocol.</li>
+<li>Market creators — a malicious or careless market definition cannot force a false outcome, since resolution logic re-derives the outcome from the proved transaction itself.</li>
+</ul>
+</div>
+</div>
+<p>The <code>resolve</code> function additionally guards against proof replay by tracking <code>processedQueries[marketId][queryId]</code>, and against post-deadline resolution races by checking <code>block.timestamp &lt; deadline</code> before finalizing. The <code>claim</code> function is reentrancy-guarded and includes an explicit no-winner refund path so that funds cannot become permanently stuck if a market resolves with an empty winning pool.</p>
+
+<!-- 7. IMPLEMENTATION -->
+<h1 class="section-title page-break">7. Implementation and Technology Stack</h1>
+<table>
+<tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+<tr><td>Smart contracts</td><td>Solidity 0.8.28, Hardhat 2, OpenZeppelin</td><td><code>Markets.sol</code> / <code>MarketBase.sol</code> — market lifecycle and proof-gated resolution</td></tr>
+<tr><td>Cross-chain verification</td><td><code>@gluwa/asc-contracts</code>, <code>@gluwa/usc-sdk</code></td><td>Attestcoin proof generation and <code>INativeQueryVerifier</code> precompile bindings</td></tr>
+<tr><td>Backend</td><td>Node.js, TypeScript, Express, viem, ethers v6</td><td>Two-chain indexer, matcher, resolution job queue, REST API</td></tr>
+<tr><td>Persistence</td><td>Firebase Admin / Firestore</td><td>Frontend-authored market metadata (question text, presets) not derivable from chain state alone</td></tr>
+<tr><td>Frontend</td><td>Next.js 16, React 19, wagmi, viem, RainbowKit</td><td>Market creation UI, betting flow, live on-chain reads</td></tr>
+<tr><td>Source chain</td><td>Ethereum Sepolia</td><td>Where the real DeFi conditions occur — ERC-20 transfers, Aave Supply/Borrow, Uniswap V3 swaps</td></tr>
+<tr><td>Markets chain</td><td>Creditcoin Testnet (chain ID 102031)</td><td>Hosts <code>Markets.sol</code> and the Native Query Verifier precompile; settlement currency is CTC</td></tr>
+</table>
+
+<h2>7.1 Deployed Contracts</h2>
+<table>
+<tr><th>Contract</th><th>Chain</th><th>Address</th><th>Notes</th></tr>
+<tr><td><code>Markets</code></td><td>Creditcoin Testnet (102031)</td><td class="tx-link">0x0a0d9f5875b54d9adfa4Fc121D9C5f70EEE2450f</td><td>Single contract for every market — no per-market deploys</td></tr>
+<tr><td><code>TestToken</code> (CTT)</td><td>Sepolia (11155111)</td><td class="tx-link">0xE8473Df91c4EB7cf0972E9dfb856329B84154920</td><td>Test ERC-20 used as a source-chain condition for the end-to-end run</td></tr>
+</table>
+
+<!-- 8. E2E RESULTS -->
+<h1 class="section-title page-break">8. End-to-End Testnet Validation</h1>
+<p>The full pipeline — create, bet, source event, detect, prove, resolve, claim — was executed against live public testnets on 10 September 2026. Market&nbsp;1 was configured as a <code>SingleEvent</code> / <code>SingleWordValue</code> market watching CTT <code>Transfer</code> events from a specific Sepolia address, resolving YES if the transferred value was greater than or equal to 500&nbsp;CTT.</p>
+<table>
+<tr><th>Step</th><th>Chain</th><th>Transaction</th><th>Purpose</th></tr>
+<tr><td><code>TestToken</code> deploy</td><td>Sepolia</td><td class="tx-link">0x07fd76fb0c3b8387f3e95308ea46afdf99d9088615d239171b3e33e11b15896b</td><td>Deploy the CTT test ERC-20 used as the market's source contract</td></tr>
+<tr><td><code>createMarket</code></td><td>Creditcoin Testnet</td><td class="tx-link">0xc8d8e039dfeed84795305097410450fc3572e5c000353d327a2667154f5bde5c</td><td>Create Market&nbsp;1 — watch CTT <code>Transfer</code>, threshold 500e18, GTE</td></tr>
+<tr><td><code>bet</code> (YES)</td><td>Creditcoin Testnet</td><td class="tx-link">0x54533ca318e7195a09b16368e3ffd782a58bac08775d1f2af3df585ca5b8e78e</td><td>Stake 0.002 CTC on YES</td></tr>
+<tr><td><code>bet</code> (NO)</td><td>Creditcoin Testnet</td><td class="tx-link">0xd6d8e7aeb314a87c85639db780ffafce53d09ebb9f9d66d74297d7665c121752</td><td>Stake 0.001 CTC on NO</td></tr>
+<tr><td>Source transfer</td><td>Sepolia</td><td class="tx-link">0x52cef4fcac54534847a3b44a06bd572a8af31b258967c38e9ca962700c32a67f</td><td>600 CTT transfer matched by the watcher; this attempt exhausted retries on flaky public RPC timeouts</td></tr>
+<tr><td>Source transfer (retry)</td><td>Sepolia</td><td class="tx-link">0x2a16329f3635742b8d106dc0b9d989382a8a6f73ae8dc8a91d5ebbd8ae45e7d2</td><td>750 CTT transfer — the transaction actually proven and resolved against</td></tr>
+<tr><td><code>resolve</code></td><td>Creditcoin Testnet</td><td class="tx-link">0xf4a474c2538dddc565607be7cd9c9c2afd3c6d2ccf20e5ece254ec94f869dcf1</td><td>Attestcoin proof for the 750 CTT transfer verified on-chain; emits <code>MarketResolved(1, true)</code></td></tr>
+<tr><td><code>claim</code></td><td>Creditcoin Testnet</td><td class="tx-link">0x2ef98c62589d1d29b604085bb1800319cc3ccd20ccbb4cae7d2dab191e0d830f</td><td>Payout — 0.002 CTC stake + 0.001 CTC pro-rata winnings = 0.003 CTC</td></tr>
+</table>
+<div class="callout"><b>Observation.</b> The one failed resolution attempt in this run was caused by public Sepolia RPC timeouts during proof retrieval — an infrastructure reliability concern, not a protocol or cryptographic failure. The retry against the second, larger transfer resolved and paid out correctly, demonstrating the full detect &rarr; attest &rarr; prove &rarr; verify &rarr; settle &rarr; claim pipeline end-to-end on public infrastructure.</div>
+
+<!-- 9. FUTURE WORK -->
+<h1 class="section-title page-break">9. Future Work</h1>
+<ul>
+<li><b>Additional source chains.</b> Extending beyond Sepolia to further chains Attestcoin attests, widening the space of provable DeFi conditions Cascade markets can reference.</li>
+<li><b>Richer event templates.</b> Support for multi-leg conditions (e.g., conjunctions across two events) beyond the current single-event and cumulative-value templates.</li>
+<li><b>Resolver decentralization.</b> Opening the resolver role to any party willing to submit a valid proof and earn a small fee, removing reliance on a single operated resolver process for liveness (the contract's trust model already permits this — only liveness is currently centralized).</li>
+<li><b>Mainnet deployment.</b> Migrating from Creditcoin and Sepolia testnets to their production counterparts once Attestcoin attestation is available there.</li>
+<li><b>Market discovery and liquidity tooling.</b> Improved UI for browsing, filtering, and eventually providing liquidity across many concurrently open markets.</li>
+</ul>
+
+<!-- 10. CONCLUSION -->
+<h1 class="section-title">10. Conclusion</h1>
+<p>Cascade demonstrates that prediction markets on cross-chain DeFi activity do not need to trade decentralization for resolvability. By treating market resolution as a cryptographic verification problem — rather than a governance or oracle problem — and by building directly on Creditcoin's Native Query Verifier precompile and the Attestcoin Protocol's attestation infrastructure, Cascade settles markets the moment their underlying condition is provably true on the source chain, with no admin, no oracle, and no dispute window standing between an event and a payout. The end-to-end testnet run described in Section&nbsp;8 confirms this pipeline functions correctly against live, independent public chains — from market creation, through real Sepolia activity, to a cryptographically verified, on-chain payout.</p>
+
+<footer class="pagefoot">Cascade Whitepaper &middot; v1.0 &middot; September 2026 &middot; Built on Creditcoin Testnet &amp; the Attestcoin Protocol</footer>
+
+</body>
+</html>

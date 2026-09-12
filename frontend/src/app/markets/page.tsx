@@ -458,7 +458,7 @@ export default function MarketsPage() {
               Couldn&apos;t load markets
             </h2>
             <p style={{ margin: "12px auto 22px", color: "#A5A3BE", maxWidth: "52ch", overflowWrap: "anywhere" }}>
-              {error?.message || "The backend isn't reachable."} Is the Cascade backend running on {process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000"}?
+              {error?.message || "The backend isn't reachable."} Is the Cascade backend running on {process.env.NEXT_PUBLIC_API_BASE_URL || "https://cascade-1-sd9s.onrender.com"}?
             </p>
             <button
               onClick={() => refetch()}

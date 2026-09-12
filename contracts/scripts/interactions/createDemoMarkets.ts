@@ -8,14 +8,14 @@ import { getMarkets, logContext, MarketType, EventTemplate, ComparisonOperator }
  *
  *   npx hardhat run scripts/interactions/createDemoMarkets.ts --network creditcoinTestnet
  *
- * Requires the backend dev server running locally (POST http://localhost:4000/markets)
+ * Requires the backend running (POST https://cascade-1-sd9s.onrender.com/markets)
  * with CRED configured. Override with BACKEND_URL.
  *
  * Reads reserve-token decimals/symbol live from Sepolia (read-only, no signer
  * needed there) so thresholds are computed in the token's real raw units.
  */
 
-const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BACKEND_URL = (process.env.BACKEND_URL ?? "https://cascade-1-sd9s.onrender.com").replace(/\/$/, "");
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com";
 
 const AAVE_V3_POOL = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951";
