@@ -7,7 +7,7 @@ import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWriteC
 import landing from "@/app/page.module.css";
 import styles from "@/app/markets/page.module.css";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
-import { creditcoinTestnet } from "@/config/web3";
+import { creditcoinTestnet, sepolia } from "@/config/web3";
 import { persistCreatedMarket } from "@/lib/api";
 import {
   AAVE_BORROW_SIG,
@@ -144,6 +144,10 @@ function minDeadlineLocal(): string {
 /// Reads an ERC20's decimals()/symbol() for a candidate address, only once
 /// it's well-formed — token-amount thresholds need this to convert the
 /// user's human-readable number into the raw integer the contract stores.
+/// Pinned to Sepolia: these are source-chain tokens (Aave reserves, whale
+/// transfer tokens), but the wallet is connected to creditcoinTestnet to
+/// submit createMarket, so the default (wallet's active chain) would read
+/// against the wrong RPC and fail.
 function useTokenMeta(candidate: string, enabled: boolean) {
   const valid = isAddress(candidate);
   const address = valid ? (candidate as Address) : undefined;
@@ -151,12 +155,14 @@ function useTokenMeta(candidate: string, enabled: boolean) {
     address,
     abi: erc20Abi,
     functionName: "decimals",
+    chainId: sepolia.id,
     query: { enabled: enabled && valid },
   });
   const symbol = useReadContract({
     address,
     abi: erc20Abi,
     functionName: "symbol",
+    chainId: sepolia.id,
     query: { enabled: enabled && valid },
   });
   return {

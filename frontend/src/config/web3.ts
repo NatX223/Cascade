@@ -1,5 +1,8 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { defineChain } from "viem";
+import { sepolia } from "viem/chains";
+
+export { sepolia };
 
 export const creditcoinTestnet = defineChain({
   id: 102031,
@@ -20,6 +23,6 @@ export const creditcoinTestnet = defineChain({
 export const config = getDefaultConfig({
   appName: "Cascade",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "cascade-dev",
-  chains: [creditcoinTestnet],
+  chains: [creditcoinTestnet, sepolia],
   ssr: true,
 });

@@ -39,19 +39,18 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      creditcoinTestnet: BLOCKSCOUT_API_KEY,
-      sepolia: ETHERSCAN_API_KEY,
+      'creditcoin-testnet': 'empty'
     },
     customChains: [
       {
-        network: "creditcoinTestnet",
+        network: "creditcoin-testnet",
         chainId: 102031,
         urls: {
           apiURL: "https://creditcoin-testnet.blockscout.com/api",
-          browserURL: "https://creditcoin-testnet.blockscout.com",
-        },
-      },
-    ],
+          browserURL: "https://creditcoin-testnet.blockscout.com"
+        }
+      }
+    ]
   },
   sourcify: {
     enabled: false,
